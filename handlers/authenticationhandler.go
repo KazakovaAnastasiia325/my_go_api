@@ -7,9 +7,7 @@ import (
 	"net/http"
 )
 func AuthenticateUserHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")             // Разрешить запросы от всех
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS") 
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -29,7 +27,12 @@ func AuthenticateUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Неверные учетные данные", http.StatusUnauthorized)
 		return
 	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"token": token, "username": user.Username})
 	return
+	
+}
+func AuthenticatePageHandler(w http.ResponseWriter, r *http.Request) {
+    http.ServeFile(w, r, "view/auth.html")
 }

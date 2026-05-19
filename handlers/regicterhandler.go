@@ -8,9 +8,7 @@ import (
 )
 
 func RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")             // Разрешить запросы от всех
-    w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS") 
-    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 	 if r.Method == http.MethodOptions{ 
 		w.WriteHeader(http.StatusOK)
 		return
@@ -33,3 +31,6 @@ func RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Пользователь успешно зарегистрирован"))}
 	
+func RegisterPageHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "view/reg.html")
+}
