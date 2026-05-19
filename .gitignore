@@ -1,0 +1,9 @@
+/vendor
+*.exe
+*.log
+.env
+.gradle/
+build/
+bin/
+.idea/
+.vscode/
