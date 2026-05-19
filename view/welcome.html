@@ -74,6 +74,11 @@
         if (username) {
             document.getElementById('display-username').textContent = username + ', ';
         }
+        function logout() {
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+            window.location.href = "auth.html";
+        }
     </script>
 </body>
 </html>
