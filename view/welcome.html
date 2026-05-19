@@ -42,7 +42,7 @@
         border-radius: 0.5rem;
         background: #0f172a;
         color: white;
-        box-sizing: border-box; /* Чтобы паддинги не раздували инпут */
+        box-sizing: border-box; 
     }
 
     button {
@@ -65,8 +65,8 @@
 <body>
     <div class="container">
     <h1>Поздравляем!</h1>
-    <p style="color: #94a3b8;"><strong id="display-username">Гость</strong>Вы успешно зарегистрировались в системе.</p>
-    <a href="reg.html">Вернуться назад</a>
+    <p style="color: #94a3b8;"><strong id="display-username">Гость, </strong>Вы успешно зарегистрировались в системе.</p>
+    <a href="/auth-page">Вернуться назад</a>
     </div>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
@@ -77,7 +77,7 @@
         function logout() {
             localStorage.removeItem("token");
             localStorage.removeItem("username");
-            window.location.href = "auth.html";
+            
         }
     </script>
 </body>
