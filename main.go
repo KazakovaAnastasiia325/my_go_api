@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"my_api/database"
-
+	"my_api/repository"
 	"net/http"
 	"os"
 	"log"
 	"github.com/joho/godotenv"
-	"my_api/routes"
+	"my_api/middleware"
 )
 func main() {
 	err := godotenv.Load()
@@ -17,19 +17,19 @@ func main() {
 	}
 	connStr := os.Getenv("CONN_STR")
 	if connStr == "" {
-		log.Fatal("Переменная окружения CONN_STR не установлена")
+		log.Fatal("Переменная CONN_STR не установлена")
 		return
 	}
     database.InitDB(connStr)
     defer database.DB.Close()
-
-    mux := routes.SetupRoutes()
-	handlerWithCORS := routes.EnableCORS(mux)
+	
+	repository.SeedAdmin()
+    mux := middleware.SetupRoutes()
+	handlerWithCORS := middleware.EnableCORS(mux)
     fmt.Println("Сервер запущен на http://localhost:8080")
     if err := http.ListenAndServe(":8080", handlerWithCORS); err != nil {
         log.Fatal(err)
     }
-
 }
 
 

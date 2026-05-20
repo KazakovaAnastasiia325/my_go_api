@@ -2,82 +2,56 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Добро пожаловать</title>
+    <title>Загрузка...</title>
     <style>
-    :root {
-        --primary: #6366f1;
-        --bg: #0f172a;
-        --card: #1e293b;
-        --text: #f8fafc;
-    }
-
-    body {
-        font-family: 'Inter', sans-serif;
-        background-color: var(--bg);
-        color: var(--text);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        margin: 0;
-    }
-
-    .container {
-        background: var(--card);
-        padding: 2.5rem;
-        border-radius: 1rem;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        width: 100%;
-        max-width: 400px;
-        text-align: center;
-    }
-
-    h2 { margin-bottom: 1.5rem; font-weight: 600; }
-
-    input {
-        width: 100%;
-        padding: 12px;
-        margin-bottom: 1rem;
-        border: 1px solid #334155;
-        border-radius: 0.5rem;
-        background: #0f172a;
-        color: white;
-        box-sizing: border-box; 
-    }
-
-    button {
-        width: 100%;
-        padding: 12px;
-        background: var(--primary);
-        border: none;
-        border-radius: 0.5rem;
-        color: white;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.3s;
-    }
-
-    button:hover { background: #4f46e5; transform: translateY(-2px); }
-
-    a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; margin-top: 1rem; display: block; }
-</style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .loader {
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-    <h1>Поздравляем!</h1>
-    <p style="color: #94a3b8;"><strong id="display-username">Гость, </strong>Вы успешно зарегистрировались в системе.</p>
-    <a href="/auth-page">Вернуться назад</a>
+    <div class="loader">
+        <h2>Секунду, настраиваем ваш личный кабинет...</h2>
     </div>
+
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const username = urlParams.get('username');
-        if (username) {
-            document.getElementById('display-username').textContent = username + ', ';
+        
+        const role = localStorage.getItem('role');
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            window.location.href = '/auth-page';
+        } else {
+            //навигация
+            switch (role) {
+                case 'admin':
+                    window.location.href = '/admin-dashboard';
+                    break;
+                case 'seller':
+                    window.location.href = '/seller-dashboard';
+                    break;
+                case 'customer':
+                    window.location.href = '/catalog';
+                    break;
+                default:
+                    window.location.href = '/catalog';
+                    break;
+            }
         }
+
         function logout() {
-            localStorage.removeItem("token");
-            localStorage.removeItem("username");
-            
+            localStorage.clear();
+            window.location.href = '/auth-page';
         }
     </script>
 </body>

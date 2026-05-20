@@ -1,4 +1,4 @@
-package routes
+package middleware
 
 import (
 	"my_api/handlers"
@@ -15,12 +15,19 @@ func SetupRoutes() *http.ServeMux {
     mux.HandleFunc("/register-page", handlers.RegisterPageHandler)
     mux.HandleFunc("/auth-page", handlers.AuthenticatePageHandler)
     mux.HandleFunc("/welcome-page", handlers.WelcomePageHandler)
+	mux.HandleFunc("/admin-dashboard", handlers.AdminPageHandler)
+	mux.HandleFunc("/create-seller-page", handlers.CreateSellerPageHandler)
+	/*mux.HandleFunc("/seller-dashboard", handlers.SellerPageHandler)
+	mux.HandleFunc("/catalog", handlers.CatalogPageHandler)*/
 
     // API
     mux.HandleFunc("/api/reg", handlers.RegisterUserHandler)
     mux.HandleFunc("/api/auth", handlers.AuthenticateUserHandler)
     mux.HandleFunc("/api/welcome", handlers.WelcomeHandler)
-
+	mux.HandleFunc("/api/admin/create-user", handlers.CreateSellerHandler)
+    mux.HandleFunc("/api/admin/users", handlers.GetUsersHandler)
+    /*mux.HandleFunc("/api/seller/create-product", handlers.CreateProductHandler)
+    mux.HandleFunc("/api/catalog", handlers.CatalogHandler)*/
     // Статика
     fs := http.FileServer(http.Dir("view"))
     mux.Handle("/static/", http.StripPrefix("/static/", fs))
@@ -37,7 +44,6 @@ func EnableCORS(next http.Handler) http.Handler {
             w.WriteHeader(http.StatusOK)
             return
         }
-
         next.ServeHTTP(w, r)
     })
 }

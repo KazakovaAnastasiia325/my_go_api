@@ -22,14 +22,17 @@ func AuthenticateUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Неверный формат данных", http.StatusBadRequest)
 		return
 	}
-	token, err := service.AuthenticateUser(user.Username, user.Password)
-	if err != nil {
-		http.Error(w, "Неверные учетные данные", http.StatusUnauthorized)
-		return
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"token": token, "username": user.Username})
+	token, role, err := service.AuthenticateUser(user.Username, user.Password)
+    if err != nil {
+        http.Error(w, "Ошибка авторизации", http.StatusUnauthorized)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "token": token,
+        "role":  role, // ВОТ ЭТОТ КЛЮЧ ждет твой auth.html
+    })
 	return
 	
 }

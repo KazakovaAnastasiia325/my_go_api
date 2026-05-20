@@ -23,11 +23,12 @@ func RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Неверный формат данных", http.StatusBadRequest)
 		return
 	}
-	err = service.RegisterUser(user.Username, user.Email, user.Password)
+	err = service.RegisterUser(user.Username, user.Email, user.Password, "customer" )
 	if err != nil {
 		http.Error(w, "Ошибка при регистрации пользователя", http.StatusInternalServerError)
 		return
 	}
+	
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Пользователь успешно зарегистрирован"))}
 	
