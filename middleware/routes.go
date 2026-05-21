@@ -9,10 +9,10 @@ func SetupRoutes() *http.ServeMux {
     mux := http.NewServeMux()
 
     // Главная страница
-    mux.HandleFunc("/", handlers.AuthenticatePageHandler)
+   
 
     // Страницы
-    mux.HandleFunc("/register-page", handlers.RegisterPageHandler)
+    /*mux.HandleFunc("/register-page", handlers.RegisterPageHandler)
     mux.HandleFunc("/auth-page", handlers.AuthenticatePageHandler)
     mux.HandleFunc("/welcome-page", handlers.WelcomePageHandler)
 	mux.HandleFunc("/admin-dashboard", handlers.AdminPageHandler)
@@ -21,7 +21,7 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/catalog", handlers.CatalogPageHandler)
 	mux.HandleFunc("/catalog-dashboard", handlers.CatalogPageHandler)
 	mux.HandleFunc("/customer", handlers.CustomerDashboardHandler)
-	mux.HandleFunc("/customer-dashboard", handlers.CustomerDashboardHandler)
+	mux.HandleFunc("/customer-dashboard", handlers.CustomerDashboardHandler)*/
 
     // API
     mux.HandleFunc("/api/reg", handlers.RegisterUserHandler)
@@ -32,8 +32,8 @@ func SetupRoutes() *http.ServeMux {
     mux.HandleFunc("/api/products", handlers.CreateProductHandler)
    mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
     // Статика
-    fs := http.FileServer(http.Dir("view"))
-    mux.Handle("/static/", http.StripPrefix("/static/", fs))
+    fs := http.FileServer(http.Dir("./frontend/dist"))
+    mux.Handle("/", fs) 
 
     return mux
 }
