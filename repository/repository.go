@@ -41,3 +41,29 @@ func GetAllUsers() ([]models.User, error) {
     }
     return users, nil
 }
+func GetAllProducts() ([]models.Product, error) {
+	rows, err := database.DB.Query(context.Background(), "SELECT id, name, description, price, seller_id, quantity FROM products")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var products []models.Product
+	for rows.Next() {
+		var p models.Product
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.SellerID, &p.Quantity); err != nil {
+			return nil, err
+		}
+		products = append(products, p)
+	}
+	return products, nil
+}
+
+func CreateProduct(name, description string, price float64, sellerID int, quantity int) error {
+	query := `INSERT INTO products (name, description, price, seller_id, quantity) VALUES ($1, $2, $3, $4, $5)`
+	_, err := database.DB.Exec(context.Background(), query, name, description, price, sellerID, quantity)
+	if err != nil {
+		return fmt.Errorf("Ошибка при создании продукта: %w", err)
+	}
+	return nil
+}
+

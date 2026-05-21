@@ -31,10 +31,9 @@ func AuthenticateUserHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(map[string]string{
         "token": token,
-        "role":  role, // ВОТ ЭТОТ КЛЮЧ ждет твой auth.html
+        "role":  role, 
     })
 	return
-	
 }
 func AuthenticatePageHandler(w http.ResponseWriter, r *http.Request) {
     http.ServeFile(w, r, "view/auth.html")

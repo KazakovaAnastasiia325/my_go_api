@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberMart — Кабинет Покупателя</title>
+    
+    <!-- Подключение шрифтов -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        darkBg: '#090d16',
+                        darkCard: '#111827',
+                        darkBorder: '#1f2937',
+                        accent: '#6366f1',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Библиотека иконок Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React, ReactDOM и Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Плавные переходы для интерактивных элементов */
+        * {
+            transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+        }
+        body {
+            background-color: #090d16;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+        /* Кастомный скроллбар */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+    </style>
+</head>
+<body class="text-slate-100 antialiased min-h-screen">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // Демо-данные товаров на случай, если бэкенд выключен или пустой
+        const MOCK_PRODUCTS = [
+            { ID: 1, Name: "Игровая клавиатура CyberKey", Description: "Механическая клавиатура с RGB-подсветкой и переключателями Red Switch.", Price: 24900, Quantity: 15 },
+            { ID: 2, Name: "Беспроводная мышь AirGlide", Description: "Легкая игровая мышь с сенсором 16000 DPI и временем автономной работы до 80 часов.", Price: 18500, Quantity: 4 },
+            { ID: 3, Name: "Игровые наушники VoidSound Pro", Description: "Гарнитура с объемным звуком 7.1 и микрофоном с шумоподавлением.", Price: 32000, Quantity: 0 },
+            { ID: 4, Name: "Коврик для мыши NeonMap XL", Description: "Огромный игровой коврик с влагозащитным покрытием и неоновым принтом.", Price: 6500, Quantity: 45 }
+        ];
+
+        function App() {
+            const [products, setProducts] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [isMocked, setIsMocked] = useState(false);
+            
+            // Фильтры
+            const [maxPrice, setMaxPrice] = useState(50000);
+            const [onlyInStock, setOnlyInStock] = useState(false);
+
+            // Корзина
+            const [cart, setCart] = useState([]);
+            const [isCartOpen, setIsCartOpen] = useState(false);
+            const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+
+            // Загрузка товаров из базы
+            useEffect(() => {
+                async function fetchProducts() {
+                    try {
+                        setLoading(true);
+                        const response = await fetch('/api/catalog');
+                        if (!response.ok) throw new Error('Бэкенд недоступен');
+                        const data = await response.json();
+                        
+                        // ИСПРАВЛЕНО (Броня от белого экрана): Безопасное приведение к массиву
+                        setProducts(Array.isArray(data) ? data : []);
+                        setIsMocked(false);
+                    } catch (err) {
+                        console.warn("API недоступно. Переключаемся на демо-данные:", err);
+                        setProducts(MOCK_PRODUCTS);
+                        setIsMocked(true);
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+                fetchProducts();
+            }, []);
+
+            // Перерисовка иконок Lucide
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            });
+
+            // Расчет максимальной стоимости товара для ползунка цен
+            const highestProductPrice = useMemo(() => {
+                // ИСПРАВЛЕНО: Безопасная проверка на существование и тип массива
+                if (!Array.isArray(products) || products.length === 0) return 50000;
+                return Math.max(...products.map(p => p.price || p.Price || 0));
+            }, [products]);
+
+            // Синхронизация ползунка цены при загрузке данных
+            useEffect(() => {
+                if (highestProductPrice > 0) {
+                    setMaxPrice(highestProductPrice);
+                }
+            }, [highestProductPrice]);
+
+            // Фильтрация товаров по поиску, цене и наличию
+            const filteredProducts = useMemo(() => {
+                // ИСПРАВЛЕНО: Безопасный возврат, если продукты не загрузились
+                if (!Array.isArray(products)) return [];
+                
+                return products.filter(product => {
+                    const name = (product.name || product.Name || '').toLowerCase();
+                    const desc = (product.description || product.Description || '').toLowerCase();
+                    const price = product.price !== undefined ? product.price : product.Price;
+                    const qty = product.quantity !== undefined ? product.quantity : product.Quantity;
+
+                    const matchesSearch = name.includes(searchTerm.toLowerCase()) || desc.includes(searchTerm.toLowerCase());
+                    const matchesPrice = price <= maxPrice;
+                    const matchesStock = !onlyInStock || qty > 0;
+
+                    return matchesSearch && matchesPrice && matchesStock;
+                });
+            }, [products, searchTerm, maxPrice, onlyInStock]);
+
+            // Добавление товара в корзину
+            const addToCart = (product) => {
+                const id = product.id || product.ID;
+                const price = product.price || product.Price;
+                const name = product.name || product.Name;
+                const maxQty = product.quantity !== undefined ? product.quantity : product.Quantity;
+
+                setCart(prevCart => {
+                    const existingItem = prevCart.find(item => item.id === id);
+                    if (existingItem) {
+                        if (existingItem.count >= maxQty) {
+                            alert("Извините, больше этого товара нет на складе!");
+                            return prevCart;
+                        }
+                        return prevCart.map(item => 
+                            item.id === id ? { ...item, count: item.count + 1 } : item
+                        );
+                    }
+                    return [...prevCart, { id, name, price, count: 1, maxQty }];
+                });
+            };
+
+            // Изменение количества товара в корзине
+            const updateCartCount = (id, change) => {
+                setCart(prevCart => {
+                    return prevCart.map(item => {
+                        if (item.id === id) {
+                            const newCount = item.count + change;
+                            if (newCount <= 0) return null; // Удаление из корзины при count = 0
+                            if (newCount > item.maxQty) {
+                                alert("На складе больше нет данного товара!");
+                                return item;
+                            }
+                            return { ...item, count: newCount };
+                        }
+                        return item;
+                    }).filter(Boolean);
+                });
+            };
+
+            // Полное удаление из корзины
+            const removeFromCart = (id) => {
+                setCart(prevCart => prevCart.filter(item => item.id !== id));
+            };
+
+            // Расчет сумм
+            const cartTotal = useMemo(() => {
+                return cart.reduce((sum, item) => sum + (item.price * item.count), 0);
+            }, [cart]);
+
+            const cartCount = useMemo(() => {
+                return cart.reduce((sum, item) => sum + item.count, 0);
+            }, [cart]);
+
+            const handleCheckout = (e) => {
+                e.preventDefault();
+                setIsCartOpen(false);
+                setIsCheckoutModalOpen(true);
+                setCart([]); // Очистка корзины после симуляции оплаты
+            };
+
+            return (
+                <div className="min-h-screen">
+                    
+                    {/* НАВИГАЦИОННАЯ ПАНЕЛЬ */}
+                    <nav className="sticky top-0 z-40 bg-[#090d16]/80 backdrop-blur-md border-b border-gray-800/80 px-4 sm:px-6 lg:px-8 py-4">
+                        <div className="max-w-7xl mx-auto flex items-center justify-between">
+                            
+                            {/* Логотип */}
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">
+                                    C
+                                </div>
+                                <div>
+                                    <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
+                                        CyberMart
+                                    </span>
+                                    <p className="text-[10px] text-indigo-400 uppercase tracking-widest font-bold -mt-1">personal cabin</p>
+                                </div>
+                            </div>
+
+                            {/* Кнопка Корзины */}
+                            <button 
+                                type="button"
+                                onClick={() => setIsCartOpen(true)}
+                                className="relative inline-flex items-center gap-2 bg-gray-900 border border-gray-800 hover:border-gray-700 text-slate-200 hover:text-white font-semibold px-4 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95"
+                            >
+                                <i data-lucide="shopping-cart" className="w-5 h-5"></i>
+                                <span className="hidden sm:inline">Корзина</span>
+                                {cartCount > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-[10px] font-extrabold text-white ring-2 ring-[#090d16] animate-bounce">
+                                        {cartCount}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
+                    </nav>
+
+                    {/* ГЛАВНЫЙ КОНТЕНТ */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                        
+                        {/* Приветственный Промо-Баннер */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-900/40 border border-indigo-500/10 rounded-3xl p-8 md:p-12 mb-10 shadow-2xl">
+                            <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                            <div className="absolute top-0 right-10 w-48 h-48 bg-pink-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                            
+                            <div className="relative z-10 max-w-2xl">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 mb-4">
+                                    Весенние скидки — Cyber Sale ₸
+                                </span>
+                                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
+                                    Добро пожаловать в Личный Кабинет
+                                </h1>
+                                <p className="text-slate-400 text-base md:text-lg font-light leading-relaxed">
+                                    Здесь вы можете посмотреть весь ассортимент, настроить фильтры, добавить лучшие игровые девайсы в корзину и быстро оформить заказ.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* СЕТКА ФИЛЬТРОВ И КАТАЛОГА */}
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+                            
+                            {/* Боковая Панель Фильтров */}
+                            <aside className="bg-gray-900/40 backdrop-blur-md border border-gray-800 p-6 rounded-2xl space-y-6">
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <i data-lucide="sliders-horizontal" className="w-5 h-5 text-indigo-400"></i>
+                                    Фильтры
+                                </h3>
+
+                                {/* Поиск */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Поиск девайса</label>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                                            <i data-lucide="search" className="w-4 h-4"></i>
+                                        </span>
+                                        <input 
+                                            type="text"
+                                            placeholder="Клавиатура, мышь..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full bg-slate-950/60 border border-gray-800 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Фильтр по цене */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Макс. Цена</label>
+                                        <span className="text-sm font-bold text-indigo-400">{maxPrice.toLocaleString('ru-RU')} ₸</span>
+                                    </div>
+                                    <input 
+                                        type="range"
+                                        min="0"
+                                        max={highestProductPrice > 0 ? highestProductPrice : 50000}
+                                        value={maxPrice}
+                                        onChange={(e) => setMaxPrice(Number(e.target.value))}
+                                        className="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                                        <span>0 ₸</span>
+                                        <span>{highestProductPrice.toLocaleString('ru-RU')} ₸</span>
+                                    </div>
+                                </div>
+
+                                {/* Переключатель наличия */}
+                                <div className="pt-2 border-t border-gray-800/60">
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <div className="relative">
+                                            <input 
+                                                type="checkbox"
+                                                checked={onlyInStock}
+                                                onChange={(e) => setOnlyInStock(e.target.checked)}
+                                                className="sr-only"
+                                            />
+                                            <div className={"w-10 h-5 bg-slate-800 rounded-full transition-all border border-gray-700 " + (onlyInStock ? "bg-indigo-600 border-indigo-500" : "")}></div>
+                                            <div className={"absolute top-1 left-1 bg-slate-400 w-3 h-3 rounded-full transition-all " + (onlyInStock ? "translate-x-5 bg-white" : "")}></div>
+                                        </div>
+                                        <span className="text-sm text-slate-300 group-hover:text-slate-200 font-medium">Только в наличии</span>
+                                    </label>
+                                </div>
+                            </aside>
+
+                            {/* Сетка товаров */}
+                            <div className="lg:col-span-3">
+                                {loading ? (
+                                    /* Скелетоны при загрузке */
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        {Array(6).fill(0).map((_, idx) => (
+                                            <div key={idx} className="bg-gray-900/20 border border-gray-800/50 p-6 rounded-2xl h-80 animate-pulse flex flex-col justify-between">
+                                                <div className="space-y-3">
+                                                    <div className="h-5 bg-gray-800 rounded w-2/3"></div>
+                                                    <div className="h-4 bg-gray-800 rounded w-full"></div>
+                                                    <div className="h-4 bg-gray-800 rounded w-5/6"></div>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="h-6 bg-gray-800 rounded w-20"></div>
+                                                    <div className="h-10 bg-gray-800 rounded-xl w-28"></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : filteredProducts.length > 0 ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        {filteredProducts.map(product => {
+                                            const id = product.id || product.ID;
+                                            const name = product.name || product.Name;
+                                            const desc = product.description || product.Description;
+                                            const price = product.price !== undefined ? product.price : product.Price;
+                                            const qty = product.quantity !== undefined ? product.quantity : product.Quantity;
+                                            const inStock = qty > 0;
+
+                                            return (
+                                                <div 
+                                                    key={id} 
+                                                    className="bg-gray-900/40 backdrop-blur-md border border-gray-800/80 p-6 rounded-2xl flex flex-col justify-between hover:border-indigo-500/40 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/5 group relative overflow-hidden"
+                                                >
+                                                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-tr from-transparent to-indigo-500/5 rounded-full blur-xl pointer-events-none group-hover:to-indigo-500/10 transition-colors"></div>
+
+                                                    <div className="space-y-3">
+                                                        {/* Бейдж наличия */}
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[10px] text-slate-500 font-mono font-bold tracking-wider uppercase">#SKU-{id}</span>
+                                                            {inStock ? (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                                    В наличии ({qty} шт)
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                                                    Нет на складе
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Название и описание */}
+                                                        <h4 className="text-lg font-bold text-slate-100 leading-tight group-hover:text-indigo-300 transition-colors">
+                                                            {name}
+                                                        </h4>
+                                                        <p className="text-sm text-slate-400 font-light line-clamp-3 leading-relaxed">
+                                                            {desc}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Нижняя часть карточки (Цена и кнопка покупки) */}
+                                                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-800/60">
+                                                        <div>
+                                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Цена</p>
+                                                            <span className="text-xl font-bold text-emerald-400 font-mono">{price.toLocaleString('ru-RU')} ₸</span>
+                                                        </div>
+
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => addToCart(product)}
+                                                            disabled={!inStock}
+                                                            className={"inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all " + (
+                                                                inStock 
+                                                                    ? "bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-lg shadow-indigo-500/10 hover:shadow-indigo-500/20 hover:-translate-y-0.5 active:translate-y-0" 
+                                                                    : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
+                                                            )}
+                                                        >
+                                                            <i data-lucide="plus" className="w-4 h-4"></i>
+                                                            <span>Купить</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    /* Пустое состояние (ничего не найдено) */
+                                    <div className="bg-gray-900/30 border border-gray-800 py-16 text-center rounded-2xl flex flex-col items-center justify-center gap-3">
+                                        <i data-lucide="search-code" className="w-12 h-12 text-slate-600"></i>
+                                        <h4 className="text-lg font-bold text-slate-400">Товары не найдены</h4>
+                                        <p className="text-sm text-slate-500 font-light max-w-sm">
+                                            Попробуйте изменить параметры поиска или снизить планку ценового фильтра.
+                                        </p>
+                                        <button 
+                                            type="button"
+                                            onClick={() => { setSearchTerm(''); setOnlyInStock(false); setMaxPrice(highestProductPrice); }} 
+                                            className="text-sm text-indigo-400 hover:underline mt-2 font-semibold"
+                                        >
+                                            Сбросить параметры фильтра
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Информационный баннер демо-режима */}
+                        {isMocked && (
+                            <div className="mt-12 p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-start gap-3">
+                                <i data-lucide="alert-circle" className="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+                                <div>
+                                    <h4 className="text-sm font-semibold text-amber-300">Внимание: Демонстрационный режим витрины</h4>
+                                    <p className="text-xs text-amber-400/80 mt-1">
+                                        Ваш бэкенд на Go недоступен по адресу <code className="bg-amber-950/80 px-1 rounded font-mono">/api/catalog</code>. 
+                                        Приложение использует демо-данные локальной памяти, чтобы вы могли полностью оценить интерфейс. Как только вы запустите свой Go-сервер с базой PostgreSQL, React автоматически подтянет реальные данные.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* СЛАЙДЕР-ОКНО КОРЗИНЫ (DRAWER) */}
+                    {isCartOpen && (
+                        <div className="fixed inset-0 z-50 overflow-hidden">
+                            {/* Затемняющий задний фон */}
+                            <div 
+                                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+                                onClick={() => setIsCartOpen(false)}
+                            ></div>
+
+                            <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+                                <div className="w-screen max-w-md bg-gray-950 border-l border-gray-800 p-6 shadow-2xl relative flex flex-col justify-between animate-fade-in">
+                                    
+                                    {/* Шапка корзины */}
+                                    <div className="pb-5 border-b border-gray-800 flex items-center justify-between">
+                                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                            <i data-lucide="shopping-basket" className="text-indigo-400"></i>
+                                            Ваша корзина
+                                        </h2>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setIsCartOpen(false)}
+                                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition-colors"
+                                        >
+                                            <i data-lucide="x" className="w-6 h-6"></i>
+                                        </button>
+                                    </div>
+
+                                    {/* Список товаров в корзине */}
+                                    <div className="flex-1 overflow-y-auto py-4 space-y-4">
+                                        {cart.length > 0 ? (
+                                            cart.map((item, index) => (
+                                                <div key={index} className="bg-gray-900/40 border border-gray-800/80 p-4 rounded-xl flex items-center justify-between gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h5 className="text-sm font-bold text-slate-200 truncate">{item.name}</h5>
+                                                        <p className="text-xs text-emerald-400 font-mono mt-0.5">{item.price.toLocaleString('ru-RU')} ₸ / шт.</p>
+                                                    </div>
+
+                                                    {/* Управление количеством */}
+                                                    <div className="flex items-center gap-2.5">
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => updateCartCount(item.id, -1)}
+                                                            className="w-7 h-7 bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 rounded-lg flex items-center justify-center font-bold"
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <span className="text-sm font-mono font-bold text-white w-5 text-center">{item.count}</span>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => updateCartCount(item.id, 1)}
+                                                            className="w-7 h-7 bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 rounded-lg flex items-center justify-center font-bold"
+                                                        >
+                                                            +
+                                                        </button>
+                                                        
+                                                        {/* Удалить полностью */}
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => removeFromCart(item.id)}
+                                                            className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors ml-2"
+                                                        >
+                                                            <i data-lucide="trash-2" className="w-4 h-4"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 py-12 gap-3">
+                                                <i data-lucide="shopping-cart" className="w-12 h-12 text-slate-700 animate-pulse"></i>
+                                                <p className="text-base font-medium">Корзина пуста</p>
+                                                <p className="text-xs text-slate-600 max-w-[200px]">Добавьте девайсы из каталога, чтобы сделать заказ.</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Сумма и кнопка оплаты */}
+                                    <div className="pt-5 border-t border-gray-800 space-y-4">
+                                        <div className="flex justify-between items-center text-slate-300">
+                                            <span className="text-sm font-medium">Итого к оплате:</span>
+                                            <span className="text-2xl font-bold text-emerald-400 font-mono">{cartTotal.toLocaleString('ru-RU')} ₸</span>
+                                        </div>
+
+                                        <button 
+                                            type="button"
+                                            disabled={cart.length === 0}
+                                            onClick={handleCheckout}
+                                            className={"w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all " + (
+                                                cart.length > 0 
+                                                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/10 active:translate-y-0.5" 
+                                                    : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
+                                            )}
+                                        >
+                                            <i data-lucide="credit-card" className="w-5 h-5"></i>
+                                            <span>Оплатить заказ</span>
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* МОДАЛЬНОЕ ОКНО УСПЕШНОГО ЗАКАЗА */}
+                    {isCheckoutModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                            <div className="bg-gray-900 border border-gray-800 p-8 rounded-3xl w-full max-w-md relative shadow-2xl text-center overflow-hidden">
+                                
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+
+                                <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6 shadow-lg shadow-emerald-500/10">
+                                    <i data-lucide="badge-check" className="w-10 h-10"></i>
+                                </div>
+
+                                <h2 className="text-2xl font-bold text-white mb-2">Заказ успешно оформлен!</h2>
+                                <p className="text-slate-400 text-sm font-light leading-relaxed mb-6">
+                                    Наши менеджеры получили уведомление и приступим к сборке посылки. Ожидайте звонка для подтверждения отправки.
+                                </p>
+
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsCheckoutModalOpen(false)}
+                                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-all"
+                                >
+                                    Отлично! Вернуться к покупкам
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

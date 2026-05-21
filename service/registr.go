@@ -14,7 +14,10 @@ func RegisterUser(username, email, password, role string) error {
 		Username:     username,
 		Email:        email,
 		PasswordHash: string(passwordHash),
-		Role:         "customer",
+		Role:         role,
 	}
+	if role != "seller" && role != "admin" && role != "customer" {
+    return fmt.Errorf("Недопустимая роль")
+}
 	return repository.CreateUser(user)
 }

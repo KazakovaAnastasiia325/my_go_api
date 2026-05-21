@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель Продавца — Управление Товарами</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        darkBg: '#090d16',
+                        darkCard: '#111827',
+                        darkBorder: '#1f2937',
+                        accent: '#6366f1',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        * {
+            transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+        }
+        body {
+            background-color: #090d16;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="text-slate-100 antialiased min-h-screen">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const MOCK_PRODUCTS = [
+            { id: 1, name: "Игровая клавиатура CyberKey", description: "Механическая клавиатура с RGB-подсветкой и переключателями Red Switch.", price: 4990.00, seller_id: 1, quantity: 15 },
+            { id: 2, name: "Беспроводная мышь AirGlide", description: "Легкая игровая мышь с сенсором 16000 DPI и временем автономной работы до 80 часов.", price: 3450.00, seller_id: 1, quantity: 4 },
+            { id: 3, name: "Игровые наушники VoidSound Pro", description: "Гарнитура с объемным звуком 7.1 и микрофоном с шумоподавлением.", price: 6200.00, seller_id: 1, quantity: 0 },
+            { id: 4, name: "Коврик для мыши NeonMap XL", description: "Огромный игровой коврик с влагозащитным покрытием и неоновым принтом.", price: 1200.00, seller_id: 2, quantity: 45 }
+        ];
+
+        function App() {
+            const [products, setProducts] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [statusFilter, setStatusFilter] = useState('all'); 
+            const [isMocked, setIsMocked] = useState(false);
+            
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [newProductName, setNewProductName] = useState('');
+            const [newProductDesc, setNewProductDesc] = useState('');
+            const [newProductPrice, setNewProductPrice] = useState('');
+            const [newProductQty, setNewProductQty] = useState('');
+            const [newProductSellerId, setNewProductSellerId] = useState('1');
+            const [formLoading, setFormLoading] = useState(false);
+            const [notification, setNotification] = useState(null);
+
+            const fetchProducts = async () => {
+                try {
+                    setLoading(true);
+                    const response = await fetch('/api/products');
+                    if (!response.ok) throw new Error('Backend offline');
+                    const data = await response.json();
+                    setProducts(data);
+                    setIsMocked(false);
+                } catch (err) {
+                    setProducts(MOCK_PRODUCTS);
+                    setIsMocked(true);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                fetchProducts();
+            }, []);
+
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [products, loading, isModalOpen, filteredProducts]);
+
+            const stats = useMemo(() => {
+                const totalItems = products.length;
+                const totalQty = products.reduce((sum, p) => sum + (p.quantity || p.Quantity || 0), 0);
+                const totalSum = products.reduce((sum, p) => sum + (p.price || p.Price || 0), 0);
+                const avgPrice = totalItems > 0 ? (totalSum / totalItems).toFixed(0) : 0;
+                const lowStockCount = products.filter(p => {
+                    const qty = p.quantity !== undefined ? p.quantity : p.Quantity;
+                    return qty > 0 && qty < 5;
+                }).length;
+                return { totalItems, totalQty, avgPrice, lowStockCount };
+            }, [products]);
+
+            const filteredProducts = useMemo(() => {
+                return products.filter(product => {
+                    const name = (product.name || product.Name || '').toLowerCase();
+                    const desc = (product.description || product.Description || '').toLowerCase();
+                    const qty = product.quantity !== undefined ? product.quantity : product.Quantity;
+                    const matchesSearch = name.includes(searchTerm.toLowerCase()) || desc.includes(searchTerm.toLowerCase());
+                    let matchesStatus = true;
+                    if (statusFilter === 'in') matchesStatus = qty >= 5;
+                    else if (statusFilter === 'low') matchesStatus = qty > 0 && qty < 5;
+                    else if (statusFilter === 'out') matchesStatus = qty === 0;
+                    return matchesSearch && matchesStatus;
+                });
+            }, [products, searchTerm, statusFilter]);
+
+            const handleAddProduct = async (e) => {
+                e.preventDefault();
+                setFormLoading(true);
+                setNotification(null);
+                const data = {
+                    name: newProductName,
+                    description: newProductDesc,
+                    price: parseFloat(newProductPrice),
+                    quantity: parseInt(newProductQty),
+                    seller_id: parseInt(newProductSellerId)
+                };
+                try {
+                    const response = await fetch('/api/products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    if (response.ok) {
+                        setNotification({ type: 'success', text: 'Товар успешно добавлен!' });
+                        setNewProductName(''); setNewProductDesc(''); setNewProductPrice(''); setNewProductQty('');
+                        await fetchProducts();
+                        setTimeout(() => { setIsModalOpen(false); setNotification(null); }, 1500);
+                    } else {
+                        throw new Error('Server error');
+                    }
+                } catch (err) {
+                    setNotification({ type: 'error', text: 'Ошибка: Не удалось отправить данные на сервер.' });
+                } finally {
+                    setFormLoading(false);
+                }
+            };
+
+            const getStockBadge = (qty) => {
+                if (qty === 0) return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                if (qty < 5) return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            };
+
+            return (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                    <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-10 pb-6 border-b border-gray-800/80">
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-400 to-indigo-400 bg-clip-text text-transparent">
+                                    Панель Продавца
+                                </h1>
+                                {isMocked && (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
+                                        Plus
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-slate-400 mt-1">Управление складом и мониторинг активных позиций.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setIsModalOpen(true)} className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/10 transition-all active:scale-95">
+                                <i data-lucide="package-plus" className="w-5 h-5"></i>
+                                Добавить товар
+                            </button>
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        {[
+                            { label: 'Товаров', val: stats.totalItems, icon: 'box', color: 'emerald' },
+                            { label: 'Всего шт.', val: stats.totalQty, icon: 'boxes', color: 'teal' },
+                            { label: 'Ср. цена', val: `${stats.avgPrice} ₸`, icon: 'coins', color: 'indigo' },
+                            { label: 'Мало', val: stats.lowStockCount, icon: 'alert-octagon', color: 'amber' }
+                        ].map((s, i) => (
+                            <div key={i} className="bg-gray-900/40 backdrop-blur-md border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-slate-400 font-medium">{s.label}</p>
+                                    <h3 className="text-2xl font-bold text-white mt-1">{loading ? '...' : s.val}</h3>
+                                </div>
+                                <div className={`w-12 h-12 rounded-xl bg-${s.color}-500/10 border border-${s.color}-500/20 flex items-center justify-center text-${s.color}-400`}>
+                                    <i data-lucide={s.icon} className="w-6 h-6"></i>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="relative flex-1 max-w-md">
+                            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i data-lucide="search" className="w-5 h-5"></i>
+                            </span>
+                            <input type="text" placeholder="Поиск товара..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-950/60 border border-gray-800 rounded-xl pl-11 pr-4 py-2.5 text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" />
+                        </div>
+                        <div className="flex bg-slate-950/60 p-1 rounded-xl border border-gray-800">
+                            {['all', 'in', 'low', 'out'].map(f => (
+                                <button key={f} onClick={() => setStatusFilter(f)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${statusFilter === f ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                                    {f === 'all' ? 'Все' : f === 'in' ? 'В наличии' : f === 'low' ? 'Мало' : 'Нет'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-900/30 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-gray-800 bg-gray-950/40">
+                                        <th className="py-4 px-6 text-xs font-bold uppercase text-slate-400">Артикул</th>
+                                        <th className="py-4 px-6 text-xs font-bold uppercase text-slate-400">Товар</th>
+                                        <th className="py-4 px-6 text-xs font-bold uppercase text-slate-400">Цена</th>
+                                        <th className="py-4 px-6 text-xs font-bold uppercase text-slate-400 text-center">Остаток</th>
+                                        <th className="py-4 px-6 text-xs font-bold uppercase text-slate-400 text-right">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-800/60">
+                                    {loading ? (
+                                        <tr><td colSpan="5" className="p-10 text-center text-slate-500">Загрузка...</td></tr>
+                                    ) : filteredProducts.map(p => (
+                                        <tr key={p.id || p.ID} className="hover:bg-slate-900/30 group">
+                                            <td className="py-5 px-6 text-slate-400 font-mono text-sm">#SKU-{p.id || p.ID}</td>
+                                            <td className="py-5 px-6">
+                                                <div className="font-semibold text-slate-200">{p.name || p.Name}</div>
+                                                <div className="text-xs text-slate-500 line-clamp-1">{p.description || p.Description}</div>
+                                            </td>
+                                            <td className="py-5 px-6 font-semibold text-emerald-400">{(p.price || p.Price).toLocaleString()} ₸</td>
+                                            <td className="py-5 px-6 text-center">
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStockBadge(p.quantity ?? p.Quantity)}`}>
+                                                    {p.quantity ?? p.Quantity} шт
+                                                </span>
+                                            </td>
+                                            <td className="py-5 px-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg"><i data-lucide="edit" className="w-4 h-4"></i></button>
+                                                    <button className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {isModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                            <div className="bg-gray-900 border border-gray-800 p-8 rounded-3xl w-full max-w-lg relative animate-fade-in shadow-2xl">
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-indigo-500"></div>
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold text-white">Новый товар</h2>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><i data-lucide="x" className="w-6 h-6"></i></button>
+                                </div>
+                                
+                                {notification && (
+                                    <div className={`p-3 rounded-xl mb-4 text-sm border ${notification.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                        {notification.text}
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleAddProduct} className="space-y-4">
+                                    <input type="text" placeholder="Название" required value={newProductName} onChange={e => setNewProductName(e.target.value)} className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-3 text-slate-200 focus:border-emerald-500 outline-none" />
+                                    <textarea placeholder="Описание" rows="3" required value={newProductDesc} onChange={e => setNewProductDesc(e.target.value)} className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-3 text-slate-200 focus:border-emerald-500 outline-none resize-none" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <input type="number" placeholder="Цена" required value={newProductPrice} onChange={e => setNewProductPrice(e.target.value)} className="bg-slate-950 border border-gray-800 rounded-xl px-4 py-3 text-slate-200 focus:border-emerald-500 outline-none" />
+                                        <input type="number" placeholder="Кол-во" required value={newProductQty} onChange={e => setNewProductQty(e.target.value)} className="bg-slate-950 border border-gray-800 rounded-xl px-4 py-3 text-slate-200 focus:border-emerald-500 outline-none" />
+                                    </div>
+                                    <button disabled={formLoading} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl transition-all disabled:opacity-50">
+                                        {formLoading ? 'Сохранение...' : 'Добавить в каталог'}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

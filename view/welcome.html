@@ -1,54 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Загрузка...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberMart — Перенаправление...</title>
+    
+    <!-- Подключение шрифтов -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
     <style>
         body {
-            background-color: #0f172a;
-            color: #f8fafc;
-            font-family: sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            background-color: #090d16;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%);
         }
-        .loader {
-            text-align: center;
+        /* Анимация пульсации для свечения вокруг лоадера */
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .glow-effect {
+            animation: pulse-glow 3s infinite ease-in-out;
         }
     </style>
 </head>
-<body>
-    <div class="loader">
-        <h2>Секунду, настраиваем ваш личный кабинет...</h2>
+<body class="text-slate-100 antialiased min-h-screen flex items-center justify-center p-4">
+
+    <div class="text-center max-w-md w-full relative">
+        <!-- Неоновый задний фон под спиннером -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl glow-effect pointer-events-none"></div>
+
+        <div class="relative z-10 space-y-6">
+            <!-- Красивый круговой спиннер -->
+            <div class="relative w-16 h-16 mx-auto">
+                <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+
+            <!-- Информационный блок -->
+            <div class="space-y-2">
+                <h2 class="text-2xl font-bold tracking-tight bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
+                    Вход в систему...
+                </h2>
+                <p class="text-slate-400 text-sm font-light">
+                    Секунду, настраиваем ваш личный кабинет
+                </p>
+            </div>
+        </div>
     </div>
 
     <script>
-        
-        const role = localStorage.getItem('role');
+        // Получаем токен и роль из localStorage
         const token = localStorage.getItem('token');
+        
+        // ПРИВОДИМ РОЛЬ К НИЖНЕМУ РЕГИСТРУ ДЛЯ ИСКЛЮЧЕНИЯ ОШИБОК РЕГИСТРА (Customer -> customer)
+        const role = (localStorage.getItem('role') || '').toLowerCase();
 
-        if (!token) {
-            window.location.href = '/auth-page';
-        } else {
-            //навигация
-            switch (role) {
-                case 'admin':
-                    window.location.href = '/admin-dashboard';
-                    break;
-                case 'seller':
-                    window.location.href = '/seller-dashboard';
-                    break;
-                case 'customer':
-                    window.location.href = '/catalog';
-                    break;
-                default:
-                    window.location.href = '/catalog';
-                    break;
+        // Небольшая задержка в 1 секунду для красоты анимации перехода
+        setTimeout(() => {
+            if (!token) {
+                // Если токена нет, отправляем на страницу входа
+                window.location.href = '/auth-page';
+            } else {
+                // Умная маршрутизация по ролям (ИСПРАВЛЕНО: ведет на верные короткие адреса)
+                switch (role) {
+                    case 'admin':
+                        window.location.href = '/admin-dashboard';
+                        break;
+                    case 'seller':
+                        window.location.href = '/seller-dashboard';
+                        break;
+                    case 'customer':
+                        window.location.href = '/customer-dashboard';
+                        break;
+                    default:
+                        // Резервный вариант, если роль неопределена
+                        window.location.href = '/catalog-dashboard';
+                        break;
+                }
             }
-        }
+        }, 1000);
 
+        // Функция логаута на случай непредвиденных сбоев
         function logout() {
             localStorage.clear();
             window.location.href = '/auth-page';

@@ -1,8 +1,9 @@
 package handlers
 import (
-	/*"encoding/json"
+	"encoding/json"
 	"my_api/models"
-	"my_api/service"*/
+	"fmt"
+	"my_api/repository"
 	"net/http"
 )
 func SellerDashboardHandler(w http.ResponseWriter, r *http.Request) {
@@ -14,9 +15,10 @@ func SellerDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
 		return
 	}
-	http.ServeFile(w, r, "view/seller.html")
+	fmt.Println("Запрос на страницу продавца получен") // Увидишь в терминале
+    http.ServeFile(w, r, "view/seller.html")
 }
-/*func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
+func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -31,11 +33,11 @@ func SellerDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Неверный формат данных", http.StatusBadRequest)
 		return
 	}
-	err = service.CreateProduct(product.Name, product.Description, product.Price, product.SellerID)
+	err = repository.CreateProduct(product.Name, product.Description, product.Price, product.SellerID, product.Quantity)
 	if err != nil {
 		http.Error(w, "Ошибка при создании продукта", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Продукт успешно создан"))
-}*/
+}

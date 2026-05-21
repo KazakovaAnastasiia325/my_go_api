@@ -3,7 +3,7 @@ package middleware
 import (
 	"my_api/handlers"
 	"net/http"
-
+    
 )
 func SetupRoutes() *http.ServeMux {
     mux := http.NewServeMux()
@@ -17,8 +17,11 @@ func SetupRoutes() *http.ServeMux {
     mux.HandleFunc("/welcome-page", handlers.WelcomePageHandler)
 	mux.HandleFunc("/admin-dashboard", handlers.AdminPageHandler)
 	mux.HandleFunc("/create-seller-page", handlers.CreateSellerPageHandler)
-	/*mux.HandleFunc("/seller-dashboard", handlers.SellerPageHandler)
-	mux.HandleFunc("/catalog", handlers.CatalogPageHandler)*/
+	mux.HandleFunc("/seller-dashboard", handlers.SellerDashboardHandler)
+	mux.HandleFunc("/catalog", handlers.CatalogPageHandler)
+	mux.HandleFunc("/catalog-dashboard", handlers.CatalogPageHandler)
+	mux.HandleFunc("/customer", handlers.CustomerDashboardHandler)
+	mux.HandleFunc("/customer-dashboard", handlers.CustomerDashboardHandler)
 
     // API
     mux.HandleFunc("/api/reg", handlers.RegisterUserHandler)
@@ -26,8 +29,8 @@ func SetupRoutes() *http.ServeMux {
     mux.HandleFunc("/api/welcome", handlers.WelcomeHandler)
 	mux.HandleFunc("/api/admin/create-user", handlers.CreateSellerHandler)
     mux.HandleFunc("/api/admin/users", handlers.GetUsersHandler)
-    /*mux.HandleFunc("/api/seller/create-product", handlers.CreateProductHandler)
-    mux.HandleFunc("/api/catalog", handlers.CatalogHandler)*/
+    mux.HandleFunc("/api/products", handlers.CreateProductHandler)
+   mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
     // Статика
     fs := http.FileServer(http.Dir("view"))
     mux.Handle("/static/", http.StripPrefix("/static/", fs))
