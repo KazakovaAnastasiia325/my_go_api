@@ -66,4 +66,22 @@ func CreateProduct(name, description string, price float64, sellerID int, quanti
 	}
 	return nil
 }
+func GetProductsBySeller(sellerID int) ([]models.Product, error) {
+    // Добавляем WHERE seller_id = $1
+    query := "SELECT id, name, description, price, seller_id, quantity FROM products WHERE seller_id = $1"
+    rows, err := database.DB.Query(context.Background(), query, sellerID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
 
+    var products []models.Product
+    for rows.Next() {
+        var p models.Product
+        if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.SellerID, &p.Quantity); err != nil {
+            return nil, err
+        }
+        products = append(products, p)
+    }
+    return products, nil
+}
