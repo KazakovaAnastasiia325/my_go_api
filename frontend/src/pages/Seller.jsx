@@ -90,7 +90,7 @@ const Seller = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:8080/api/seller-dashboard', {
+      const response = await fetch('http://localhost:8080/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -129,7 +129,7 @@ const Seller = () => {
               </h1>
               {isMocked && (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
-                    Plus
+                  Plus
                 </span>
               )}
             </div>
