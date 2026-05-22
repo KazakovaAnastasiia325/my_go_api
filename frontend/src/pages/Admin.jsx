@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom'; // Добавляем Link
 import { 
   Users, ShieldAlert, Store, ShoppingBag, 
-  Search, UserPlus, Edit, Trash2, AlertCircle 
+  Search, UserPlus, Edit, Trash2, AlertCircle, X 
 } from 'lucide-react';
 
 const MOCK_USERS = [
@@ -18,34 +17,86 @@ const Admin = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [isMocked, setIsMocked] = useState(false);
 
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        setLoading(true);
-        // Добавляем полный путь к API и токен из localStorage
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8080/api/admin/users', {
-            headers: {
-                'Authorization': `Bearer ${token}` // Если твой Go-сервер ждет токен
-            }
-        });
+  // СОСТОЯНИЯ ДЛЯ МОДАЛЬНОГО ОКНА И ФОРМЫ
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'customer' });
+  const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-        if (!response.ok) throw new Error('Ошибка сервера');
-        const data = await response.json();
-        setUsers(data);
-        setIsMocked(false);
-      } catch (err) {
-        console.error("Backend fetch failed, using mocks", err);
-        setUsers(MOCK_USERS);
-        setIsMocked(true);
-      } finally {
-        setLoading(false);
-      }
+  // Функция вынесена отдельно, чтобы её можно было вызывать повторно после добавления юзера
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8080/api/admin/users', {
+          headers: {
+              'Authorization': `Bearer ${token}`
+          }
+      });
+
+      if (!response.ok) throw new Error('Ошибка сервера');
+      const data = await response.json();
+      setUsers(data);
+      setIsMocked(false);
+    } catch (err) {
+      console.error("Backend fetch failed, using mocks", err);
+      setUsers(MOCK_USERS);
+      setIsMocked(true);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchUsers();
   }, []);
 
-  // Остальная логика (stats, filteredUsers, getRoleBadgeClass) остается без изменений...
+  // ОБРАБОТЧИК ОТПРАВКИ ФОРМЫ
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setIsSubmitting(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8080/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Не удалось создать пользователя');
+      }
+
+      // Если всё успешно: обновляем список, закрываем модалку и чистим форму
+      await fetchUsers(); 
+      setIsModalOpen(false);
+      setFormData({ username: '', email: '', password: '', role: 'customer' });
+    } catch (err) {
+      setFormError(err.message);
+      
+      // Имитация для демонстрации, если бэкенд не запущен
+      if (isMocked) {
+        const newUser = {
+          id: users.length + 1,
+          username: formData.username,
+          email: formData.email,
+          role: formData.role
+        };
+        setUsers([...users, newUser]);
+        setIsModalOpen(false);
+        setFormData({ username: '', email: '', password: '', role: 'customer' });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const stats = useMemo(() => ({
     total: users.length,
     admins: users.filter(u => (u.role || u.Role || '').toLowerCase() === 'admin').length,
@@ -81,7 +132,7 @@ const Admin = () => {
             </h1>
             {isMocked && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
-                Plus
+                Mock Mode
               </span>
             )}
           </div>
@@ -89,11 +140,14 @@ const Admin = () => {
         </div>
         
         <div className="flex items-center gap-4">
-            {/* ИСПОЛЬЗУЕМ Link ВМЕСТО <a> */}
-            <Link to="/create-seller" className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl transition-all">
+            {/* ТЕПЕРЬ КНОПКА ОТКРЫВАЕТ МОДАЛКУ */}
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 active:scale-95"
+            >
                 <UserPlus className="w-5 h-5" />
                 Новый пользователь
-            </Link>
+            </button>
         </div>
       </header>
 
@@ -178,6 +232,101 @@ const Admin = () => {
             </div>
         )}
       </div>
+
+      {/* КОМПОНЕНТ МОДАЛЬНОГО ОКНА */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-gray-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-800 bg-gray-950/40">
+              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-indigo-400" />
+                Создать пользователя
+              </h2>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-gray-800 rounded-lg transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+              {formError && (
+                <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Имя пользователя</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="Ivan_Ivanov" 
+                  className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 outline-none transition-all"
+                  value={formData.username}
+                  onChange={(e) => setFormData({...formData, username: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Email</label>
+                <input 
+                  type="email" 
+                  required
+                  placeholder="example@mail.ru" 
+                  className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 outline-none transition-all"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Пароль</label>
+                <input 
+                  type="password" 
+                  required
+                  placeholder="••••••••" 
+                  className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 outline-none transition-all"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Роль системы</label>
+                <select 
+                  className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer"
+                  value={formData.role}
+                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                >
+                  <option value="customer">Customer (Покупатель)</option>
+                  <option value="seller">Seller (Продавец)</option>
+                  <option value="admin">Admin (Администратор)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-800 mt-6">
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2.5 text-sm text-slate-400 hover:text-slate-200 hover:bg-gray-800 rounded-xl transition-all"
+                >
+                  Отмена
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 disabled:cursor-not-allowed text-white px-5 py-2.5 text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-600/10"
+                >
+                  {isSubmitting ? 'Создание...' : 'Сохранить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
