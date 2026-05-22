@@ -40,8 +40,7 @@ func SetupRoutes() *http.ServeMux {
     mux.HandleFunc("/api/admin/users", handlers.GetUsersHandler)
     mux.HandleFunc("/api/products", handlers.ProductsHandler)
    mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
-    // Статика
-   
+   mux.HandleFunc("/api/products/{id}", handlers.ProductByIDHandler)
 
 
     return mux

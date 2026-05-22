@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func AuthenticateUser(username, password string) (string, string, error) {
+func AuthenticateUser(username, password string) (string, string, error) { 
     user, err := repository.GetUserByUsername(username)
     if err != nil {
         return "", "", fmt.Errorf("Ошибка при получении пользователя: %w", err)

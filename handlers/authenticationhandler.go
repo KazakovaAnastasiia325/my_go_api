@@ -38,3 +38,4 @@ func AuthenticateUserHandler(w http.ResponseWriter, r *http.Request) {
 func AuthenticatePageHandler(w http.ResponseWriter, r *http.Request) {
     http.ServeFile(w, r, "view/auth.html")
 }
+

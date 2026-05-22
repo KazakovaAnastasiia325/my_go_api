@@ -6,6 +6,7 @@ import (
 	"my_api/models"
 	"my_api/repository"
 	"net/http"
+	"strconv"
 )
 
 func SellerDashboardHandler(w http.ResponseWriter, r *http.Request) {
@@ -65,6 +66,46 @@ func ProductsHandler(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		// Если придет любой другой HTTP-метод (PUT, DELETE и т.д.)
+		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+	}
+}
+
+func ProductByIDHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "Некорректный ID", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPut:
+		var product models.Product
+		if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+			http.Error(w, "Неверный формат данных", http.StatusBadRequest)
+			return
+		}
+
+		product.ID = id
+
+		err := repository.UpdateProduct(product.ID, product.Name, product.Description, product.Price, product.SellerID, product.Quantity, product.ImageURL)
+		if err != nil {
+			http.Error(w, "Ошибка при обновлении продукта", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Продукт успешно обновлён"))
+
+	case http.MethodDelete:
+		err := repository.DeleteProduct(id)
+		if err != nil {
+			http.Error(w, "Ошибка при удалении продукта", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+
+	default:
 		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
 	}
 }

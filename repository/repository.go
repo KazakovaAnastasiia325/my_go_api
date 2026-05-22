@@ -85,3 +85,24 @@ func GetProductsBySeller(sellerID int) ([]models.Product, error) {
     }
     return products, nil
 }
+func UpdateProduct(id int, name, description string, price float64, sellerID int, quantity int, imageURL string) error {
+	query := `
+		UPDATE products
+		SET name = $1,
+		    description = $2,
+		    price = $3,
+		    seller_id = $4,
+		    quantity = $5,
+		    image_url = $6
+		WHERE id = $7
+	`
+
+	_, err := database.DB.Exec(context.Background(), query, name, description, price, sellerID, quantity, imageURL, id)
+	return err
+}
+
+func DeleteProduct(id int) error {
+	query := `DELETE FROM products WHERE id = $1`
+	_, err := database.DB.Exec(context.Background(), query, id)
+	return err
+}
