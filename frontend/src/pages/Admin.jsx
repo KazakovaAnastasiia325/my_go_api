@@ -81,7 +81,7 @@ const Admin = () => {
             </h1>
             {isMocked && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
-                Demo Mode
+                Plus
               </span>
             )}
           </div>

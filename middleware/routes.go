@@ -9,7 +9,16 @@ func SetupRoutes() *http.ServeMux {
     mux := http.NewServeMux()
 
     // Главная страница
-   
+   mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			// Если запрашивается файл (js, css, картинки), отдаем его из статики
+			http.FileServer(http.Dir("./frontend/dist")).ServeHTTP(w, r)
+			return
+		}
+		// Перенаправление на страницу входа
+		http.Redirect(w, r, "/auth", http.StatusSeeOther)
+	})
+    mux.HandleFunc("/auth", handlers.AuthenticatePageHandler)
 
     // Страницы
     /*mux.HandleFunc("/register-page", handlers.RegisterPageHandler)
@@ -29,11 +38,11 @@ func SetupRoutes() *http.ServeMux {
     mux.HandleFunc("/api/welcome", handlers.WelcomeHandler)
 	mux.HandleFunc("/api/admin/create-user", handlers.CreateSellerHandler)
     mux.HandleFunc("/api/admin/users", handlers.GetUsersHandler)
-    mux.HandleFunc("/api/products", handlers.CreateProductHandler)
+    mux.HandleFunc("/api/products", handlers.ProductsHandler)
    mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
     // Статика
-    fs := http.FileServer(http.Dir("./frontend/dist"))
-    mux.Handle("/", fs) 
+   
+
 
     return mux
 }
