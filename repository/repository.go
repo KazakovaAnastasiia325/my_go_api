@@ -50,7 +50,7 @@ func GetAllProducts() ([]models.Product, error) {
 	var products []models.Product
 	for rows.Next() {
 		var p models.Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.SellerID, &p.Quantity); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.SellerID, &p.ImageURL); err != nil {
 			return nil, err
 		}
 		products = append(products, p)
@@ -58,9 +58,9 @@ func GetAllProducts() ([]models.Product, error) {
 	return products, nil
 }
 
-func CreateProduct(name, description string, price float64, sellerID int, quantity int) error {
-	query := `INSERT INTO products (name, description, price, seller_id, quantity) VALUES ($1, $2, $3, $4, $5)`
-	_, err := database.DB.Exec(context.Background(), query, name, description, price, sellerID, quantity)
+func CreateProduct(name, description string, price float64, sellerID int, imageURL string) error {
+	query := `INSERT INTO products (name, description, price, seller_id, image_url) VALUES ($1, $2, $3, $4, $5)`
+	_, err := database.DB.Exec(context.Background(), query, name, description, price, sellerID, imageURL)
 	if err != nil {
 		return fmt.Errorf("Ошибка при создании продукта: %w", err)
 	}
@@ -68,7 +68,7 @@ func CreateProduct(name, description string, price float64, sellerID int, quanti
 }
 func GetProductsBySeller(sellerID int) ([]models.Product, error) {
     // Добавляем WHERE seller_id = $1
-    query := "SELECT id, name, description, price, seller_id, quantity FROM products WHERE seller_id = $1"
+    query := "SELECT id, name, description, price, seller_id, image_url FROM products WHERE seller_id = $1"
     rows, err := database.DB.Query(context.Background(), query, sellerID)
     if err != nil {
         return nil, err
@@ -78,7 +78,7 @@ func GetProductsBySeller(sellerID int) ([]models.Product, error) {
     var products []models.Product
     for rows.Next() {
         var p models.Product
-        if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.SellerID, &p.Quantity); err != nil {
+        if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.SellerID, &p.ImageURL); err != nil {
             return nil, err
         }
         products = append(products, p)
