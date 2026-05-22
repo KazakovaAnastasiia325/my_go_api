@@ -39,8 +39,10 @@ func SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/admin/create-user", handlers.CreateSellerHandler)
     mux.HandleFunc("/api/admin/users", handlers.GetUsersHandler)
     mux.HandleFunc("/api/products", handlers.ProductsHandler)
-    mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
-    mux.Handle("/photos/", http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos/"))))
+   mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
+    // Статика
+   
+
 
     return mux
 }

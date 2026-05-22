@@ -3,11 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"time"
-	"io"
-	"os"
-	"path/filepath"
-	"strconv"
+	"my_api/models"
 	"my_api/repository"
 	"net/http"
 )
@@ -34,60 +30,20 @@ func ProductsHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodPost:
-	// 1. Ограничиваем максимальный размер файла (например, 5 МБ)
-	r.ParseMultipartForm(5 << 20)
-
-	// 2. Достаем текстовые поля из FormData
-	name := r.FormValue("name")
-	description := r.FormValue("description")
-	priceStr := r.FormValue("price")
-	sellerIDStr := r.FormValue("seller_id")
-
-	// Переводим строки в нужные типы данных
-	price, _ := strconv.ParseFloat(priceStr, 64)
-	sellerID, _ := strconv.Atoi(sellerIDStr)
-
-	// 3. Работаем с файлом картинки
-	file, header, err := r.FormFile("image")
-	var imageURL string
-
-	if err == nil {
-		defer file.Close()
-
-		// Чтобы имена картинок не перезаписывали друг друга, добавляем таймштамп
-		uniqueName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), header.Filename)
-		
-		// Путь, куда физически сохранится файл в проекте
-		dstPath := filepath.Join("./uploads", uniqueName)
-		dst, err := os.Create(dstPath)
+		// --- ЛОГИКА СОЗДАНИЯ ТОВАРА ---
+		var product models.Product
+		err := json.NewDecoder(r.Body).Decode(&product)
 		if err != nil {
-			http.Error(w, "Ошибка сохранения файла на сервере", http.StatusInternalServerError)
+			http.Error(w, "Неверный формат данных", http.StatusBadRequest)
 			return
 		}
-		defer dst.Close()
-
-		// Копируем содержимое загруженного файла в созданный файл на диске
-		if _, err := io.Copy(dst, file); err != nil {
-			http.Error(w, "Ошибка записи файла", http.StatusInternalServerError)
+		err = repository.CreateProduct(product.Name, product.Description, product.Price, product.SellerID, product.Quantity, product.ImageURL)
+		if err != nil {
+			http.Error(w, "Ошибка при создании продукта", http.StatusInternalServerError)
 			return
 		}
-
-		// Ссылка на картинку, которую мы сохраним в базу (фронтенд будет стучаться по ней)
-		imageURL = "/uploads/" + uniqueName
-	} else {
-		// Если картинку не загрузили, можно оставить пустую строку или поставить дефолтную заглушку
-		imageURL = "/uploads/default-placeholder.png"
-	}
-
-	// 4. Сохраняем всё в репозиторий (не забудь добавить аргумент imageURL в твою функцию репозитория)
-	err = repository.CreateProduct(name, description, price, sellerID, imageURL)
-	if err != nil {
-		http.Error(w, "Ошибка при создании продукта в БД", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Продукт с картинкой успешно создан"))
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte("Продукт успешно создан"))
 
 	case http.MethodGet:
 		// --- ЛОГИКА ПОЛУЧЕНИЯ ТОВАРОВ ---
