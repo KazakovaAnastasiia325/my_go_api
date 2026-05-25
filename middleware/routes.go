@@ -27,8 +27,9 @@ func SetupRoutes() http.Handler { // Изменили возвращаемый �
     mux.HandleFunc("/api/products", handlers.ProductsHandler)
     mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
     mux.HandleFunc("/api/products/{id}", handlers.ProductByIDHandler)
+    fs := http.FileServer(http.Dir("./uploads"))
+    mux.Handle("/uploads/", http.StripPrefix("/uploads/", fs))
 
-    // ОБЕРТКА ВСЕГО РОУТЕРА В CORS МИДЛВАРЬ
     return EnableCORS(mux)
 }
 

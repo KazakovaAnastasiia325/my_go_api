@@ -8,7 +8,7 @@ const Catalog = () => {
 
     // Загрузка товаров с твоего Go-бэкенда
     useEffect(() => {
-        fetch('http://localhost:8080/api/catalog-products') // Добавь полный путь если бэк на 8080
+        fetch('http://localhost:8080/api/catalog-products') 
             .then(res => res.json())
             .then(data => setProducts(data || []))
             .catch(err => console.error("Ошибка загрузки:", err));

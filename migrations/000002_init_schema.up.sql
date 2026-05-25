@@ -5,7 +5,6 @@ CREATE TABLE products (
     price DECIMAL(10, 2) NOT NULL,       -- Цена 
     quantity INT NOT NULL DEFAULT 0,     -- Остаток на складе
     seller_id INT NOT NULL,              -- ID продавца из таблицы users
-    category VARCHAR(50),                -- Категория товара
     created_at TIMESTAMP DEFAULT NOW(),  -- Дата добавления
 
     CONSTRAINT fk_seller 
