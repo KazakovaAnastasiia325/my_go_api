@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   PackagePlus, Box, Boxes, Coins, AlertOctagon,
-  Search, Edit, Trash2, X, Image as ImageIcon, Plus
+  Search, Edit, Trash2, X, Image as ImageIcon, Plus, LogOut
 } from 'lucide-react';
 
 const MOCK_PRODUCTS = [
@@ -36,6 +36,12 @@ const Seller = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    window.location.href = '/auth';
+  };
 
   // СИНХРОНИЗАЦИЯ: Следим за localStorage
   useEffect(() => {
@@ -208,9 +214,14 @@ const Seller = () => {
               </span>
             </p>
           </div>
-          <button onClick={openAddModal} className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-3 rounded-xl font-bold shadow-lg">
-            <PackagePlus size={20} /> Добавить товар
-          </button>
+          <div className="flex items-center gap-3">
+              <button onClick={handleLogout} className="p-3 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 hover:text-rose-400 transition-all">
+                <LogOut size={20} />
+              </button>
+              <button onClick={openAddModal} className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-3 rounded-xl font-bold shadow-lg">
+                <PackagePlus size={20} /> Добавить товар
+              </button>
+          </div>
         </header>
 
         {/* Stats Grid */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     ShoppingCart, Search, SlidersHorizontal, Plus, X, 
-    ShoppingBasket, Image as ImageIcon 
+    ShoppingBasket, Image as ImageIcon, LogOut 
 } from 'lucide-react';
 
 const MOCK_PRODUCTS = [
@@ -19,6 +19,11 @@ const Customer = () => {
 
     const [cart, setCart] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        window.location.href = '/auth';
+    };
 
     // Функция загрузки данных (вынесена отдельно, чтобы вызывать её после покупки)
     const fetchProducts = async () => {
@@ -113,15 +118,20 @@ const Customer = () => {
                         <span className="text-xl font-bold bg-gradient-to-r from-indigo-300 to-pink-300 bg-clip-text text-transparent">CyberMart</span>
                     </div>
 
-                    <button onClick={() => setIsCartOpen(true)} className="relative flex items-center gap-2 bg-gray-900 border border-gray-800 px-4 py-2 rounded-xl hover:scale-105 transition-all">
-                        <ShoppingCart className="w-5 h-5 text-indigo-400" />
-                        <span>Корзина</span>
-                        {cartCount > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-pink-500 w-5 h-5 rounded-full text-[10px] flex items-center justify-center animate-bounce font-bold text-white">
-                                {cartCount}
-                            </span>
-                        )}
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button onClick={handleLogout} className="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 hover:text-rose-400 transition-all">
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                        <button onClick={() => setIsCartOpen(true)} className="relative flex items-center gap-2 bg-gray-900 border border-gray-800 px-4 py-2 rounded-xl hover:scale-105 transition-all">
+                            <ShoppingCart className="w-5 h-5 text-indigo-400" />
+                            <span>Корзина</span>
+                            {cartCount > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-pink-500 w-5 h-5 rounded-full text-[10px] flex items-center justify-center animate-bounce font-bold text-white">
+                                    {cartCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </nav>
 

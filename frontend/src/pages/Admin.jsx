@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, ShieldAlert, Store, ShoppingBag, 
-  Search, UserPlus, Edit, Trash2, AlertCircle, X 
+  Search, UserPlus, Trash2, X, LogOut 
 } from 'lucide-react';
 
 const MOCK_USERS = [
@@ -15,11 +15,9 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  const [isMocked, setIsMocked] = useState(false);
 
-  // Состояния для модалки и редактирования
+  // Состояния для модалки
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'customer' });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,21 +33,21 @@ const Admin = () => {
       if (!response.ok) throw new Error('Ошибка сервера при получении пользователей');
       const data = await response.json();
       setUsers(data || []);
-      setIsMocked(false);
     } catch (err) {
       console.error("Backend fetch failed, using mocks", err);
       setUsers(MOCK_USERS);
-      setIsMocked(true);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
-  // --- ЛОГИКА УДАЛЕНИЯ ---
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.href = '/auth';
+  };
+
   const deleteUser = async (id) => {
     if (!window.confirm('Вы действительно хотите удалить этого пользователя?')) return;
     try {
@@ -59,18 +57,11 @@ const Admin = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      if (!response.ok) {
-        const errorMsg = await response.text();
-        throw new Error(errorMsg || 'Ошибка при удалении');
-      }
-      
+      if (!response.ok) throw new Error('Ошибка при удалении');
       await fetchUsers();
-    } catch (err) {
-      alert('Ошибка при удалении: ' + err.message);
-    }
+    } catch (err) { alert('Ошибка при удалении: ' + err.message); }
   };
 
-  // --- ЛОГИКА СОХРАНЕНИЯ (Создание или Обновление) ---
   const handleSaveUser = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -80,18 +71,14 @@ const Admin = () => {
     const payload = {
       username: formData.username,
       email: formData.email,
-      password: formData.password || undefined,
+      password: formData.password,
       role_id: roleMapping[formData.role] || 2
     };
 
     try {
       const token = localStorage.getItem('token');
-      const url = editingUser 
-        ? `http://localhost:8080/api/admin/users/${editingUser.id || editingUser.ID}` 
-        : 'http://localhost:8080/api/admin/create-user';
-
-      const response = await fetch(url, {
-        method: editingUser ? 'PUT' : 'POST',
+      const response = await fetch('http://localhost:8080/api/admin/create-user', {
+        method: 'POST',
         headers: { 
           'Content-Type': 'application/json', 
           'Authorization': `Bearer ${token}` 
@@ -99,34 +86,12 @@ const Admin = () => {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Не удалось выполнить действие');
-      }
+      if (!response.ok) throw new Error(await response.text() || 'Не удалось создать пользователя');
 
       await fetchUsers();
       setIsModalOpen(false);
-    } catch (err) {
-      setFormError(err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const openModal = (user = null) => {
-    if (user) {
-      setEditingUser(user);
-      setFormData({ 
-        username: user.username || user.Username, 
-        email: user.email || user.Email, 
-        password: '', 
-        role: (user.role || user.Role || 'customer').toLowerCase() 
-      });
-    } else {
-      setEditingUser(null);
       setFormData({ username: '', email: '', password: '', role: 'customer' });
-    }
-    setIsModalOpen(true);
+    } catch (err) { setFormError(err.message); } finally { setIsSubmitting(false); }
   };
 
   const stats = useMemo(() => ({
@@ -154,17 +119,20 @@ const Admin = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-10 pb-6 border-b border-gray-800">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Панель Администратора
-          </h1>
+        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          Панель Администратора
+        </h1>
+        <div className="flex items-center gap-3">
+          <button onClick={handleLogout} className="p-3 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all border border-gray-800">
+            <LogOut className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10"
+          >
+            <UserPlus className="w-5 h-5" /> Новый пользователь
+          </button>
         </div>
-        <button 
-          onClick={() => openModal()}
-          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 active:scale-95"
-        >
-          <UserPlus className="w-5 h-5" /> Новый пользователь
-        </button>
       </header>
 
       {/* Статистика */}
@@ -182,7 +150,7 @@ const Admin = () => {
           <input 
             type="text" 
             placeholder="Поиск по имени или email..." 
-            className="w-full bg-slate-950 border border-gray-800 rounded-xl pl-10 pr-4 py-2 text-slate-200 focus:border-indigo-500 outline-none transition-all"
+            className="w-full bg-slate-950 border border-gray-800 rounded-xl pl-10 pr-4 py-2 text-slate-200 outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -192,7 +160,7 @@ const Admin = () => {
                 <button 
                     key={role}
                     onClick={() => setRoleFilter(role)}
-                    className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-all ${roleFilter === role ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-all ${roleFilter === role ? 'bg-indigo-500 text-white' : 'text-slate-400'}`}
                 >
                     {role === 'all' ? 'Все' : role}
                 </button>
@@ -202,14 +170,14 @@ const Admin = () => {
 
       {/* Таблица */}
       <div className="bg-gray-900/30 border border-gray-800 rounded-2xl overflow-hidden backdrop-blur-sm">
-        <table className="w-full text-left border-collapse">
-            <thead className="bg-gray-950/40 text-slate-400 text-xs uppercase tracking-wider">
+        <table className="w-full text-left">
+            <thead className="bg-gray-950/40 text-slate-400 text-xs uppercase">
                 <tr>
-                    <th className="p-4 font-semibold">ID</th>
-                    <th className="p-4 font-semibold">Имя</th>
-                    <th className="p-4 font-semibold">Email</th>
-                    <th className="p-4 text-center font-semibold">Роль</th>
-                    <th className="p-4 text-right font-semibold">Действия</th>
+                    <th className="p-4">ID</th>
+                    <th className="p-4">Имя</th>
+                    <th className="p-4">Email</th>
+                    <th className="p-4 text-center">Роль</th>
+                    <th className="p-4 text-right">Действия</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
@@ -219,17 +187,14 @@ const Admin = () => {
                     <td className="p-4 font-medium text-slate-200">{user.username || user.Username}</td>
                     <td className="p-4 text-slate-400">{user.email || user.Email}</td>
                     <td className="p-4 text-center">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${getRoleBadgeClass(user.role || user.Role)}`}>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${getRoleBadgeClass(user.role || user.Role)}`}>
                             {user.role || user.Role}
                         </span>
                     </td>
                     <td className="p-4 text-right">
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            
-                            <button onClick={() => deleteUser(user.id || user.ID)} title="Удалить" className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-lg transition-all">
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
+                        <button onClick={() => deleteUser(user.id || user.ID)} className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-lg">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
                     </td>
                 </tr>
                 ))}
@@ -237,43 +202,24 @@ const Admin = () => {
         </table>
       </div>
 
-      {/* МОДАЛКА */}
+      {/* Модалка */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-gray-800 w-full max-w-md rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-800 bg-gray-950/40">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-indigo-400" /> 
-                {editingUser ? 'Редактировать' : 'Создать'} пользователя
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-gray-800 rounded-lg"><X className="w-5 h-5" /></button>
-            </div>
-
-            <form onSubmit={handleSaveUser} className="p-6 space-y-4">
-              {formError && <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm rounded-xl">{formError}</div>}
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Имя</label>
-                <input type="text" required className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 outline-none" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Email</label>
-                <input type="email" required className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 outline-none" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Пароль</label>
-                <input type="password" placeholder={editingUser ? "Оставьте пустым, чтобы не менять" : "••••••••"} className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 outline-none" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Роль</label>
-                <select className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 outline-none" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
-                  <option value="customer">Customer</option>
-                  <option value="seller">Seller</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2.5 text-sm text-slate-400 hover:text-slate-200 hover:bg-gray-800 rounded-xl">Отмена</button>
-                <button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-sm rounded-xl">{isSubmitting ? 'Сохранение...' : 'Сохранить'}</button>
+          <div className="bg-slate-900 border border-gray-800 w-full max-w-md rounded-2xl p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Создать пользователя</h2>
+            <form onSubmit={handleSaveUser} className="space-y-4">
+              {formError && <p className="text-rose-400 text-sm">{formError}</p>}
+              <input required placeholder="Имя" className="w-full bg-slate-950 border p-3 rounded-xl text-white" onChange={(e) => setFormData({...formData, username: e.target.value})} />
+              <input required type="email" placeholder="Email" className="w-full bg-slate-950 border p-3 rounded-xl text-white" onChange={(e) => setFormData({...formData, email: e.target.value})} />
+              <input required type="password" placeholder="Пароль" className="w-full bg-slate-950 border p-3 rounded-xl text-white" onChange={(e) => setFormData({...formData, password: e.target.value})} />
+              <select className="w-full bg-slate-950 border p-3 rounded-xl text-white" onChange={(e) => setFormData({...formData, role: e.target.value})}>
+                <option value="customer">Customer</option>
+                <option value="seller">Seller</option>
+                <option value="admin">Admin</option>
+              </select>
+              <div className="flex gap-3 mt-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 p-3 text-slate-400">Отмена</button>
+                <button disabled={isSubmitting} className="flex-1 p-3 bg-indigo-600 rounded-xl text-white">{isSubmitting ? '...' : 'Создать'}</button>
               </div>
             </form>
           </div>
@@ -284,14 +230,12 @@ const Admin = () => {
 };
 
 const StatCard = ({ title, value, Icon, color }) => (
-  <div className="bg-gray-900/40 border border-gray-800 p-5 rounded-2xl flex items-center justify-between group hover:border-gray-700 transition-all">
+  <div className="bg-gray-900/40 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
     <div>
       <p className="text-sm text-slate-400">{title}</p>
       <h3 className={`text-2xl font-bold mt-1 ${color}`}>{value}</h3>
     </div>
-    <div className="p-3 bg-slate-800/50 rounded-xl group-hover:scale-110 transition-transform">
-      <Icon className={`w-6 h-6 ${color}`} />
-    </div>
+    <Icon className={`w-6 h-6 ${color}`} />
   </div>
 );
 
