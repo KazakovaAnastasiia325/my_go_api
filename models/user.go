@@ -6,5 +6,6 @@ type User struct {
 	Email string `json: "email"`
 	Password string `json: "password"`
 	PasswordHash string `json: "-"`
-	Role string `json:"role"` // "admin", "seller", "customer"
+	RoleID   int    `json:"role_id"`   // Новое поле для ID
+    RoleName string `json:"role"` // Сюда будем класть "admin" или "customer" после JOIN
 }

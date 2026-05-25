@@ -17,26 +17,24 @@ const Admin = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [isMocked, setIsMocked] = useState(false);
 
-  // СОСТОЯНИЯ ДЛЯ МОДАЛЬНОГО ОКНА И ФОРМЫ
+  // Состояния для модалки и редактирования
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'customer' });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Функция вынесена отдельно, чтобы её можно было вызывать повторно после добавления юзера
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8080/api/admin/users', {
-          headers: {
-              'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Ошибка сервера');
+      if (!response.ok) throw new Error('Ошибка сервера при получении пользователей');
       const data = await response.json();
-      setUsers(data);
+      setUsers(data || []);
       setIsMocked(false);
     } catch (err) {
       console.error("Backend fetch failed, using mocks", err);
@@ -51,50 +49,84 @@ const Admin = () => {
     fetchUsers();
   }, []);
 
-  // ОБРАБОТЧИК ОТПРАВКИ ФОРМЫ
-  const handleCreateUser = async (e) => {
+  // --- ЛОГИКА УДАЛЕНИЯ ---
+  const deleteUser = async (id) => {
+    if (!window.confirm('Вы действительно хотите удалить этого пользователя?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8080/api/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        const errorMsg = await response.text();
+        throw new Error(errorMsg || 'Ошибка при удалении');
+      }
+      
+      await fetchUsers();
+    } catch (err) {
+      alert('Ошибка при удалении: ' + err.message);
+    }
+  };
+
+  // --- ЛОГИКА СОХРАНЕНИЯ (Создание или Обновление) ---
+  const handleSaveUser = async (e) => {
     e.preventDefault();
     setFormError('');
     setIsSubmitting(true);
 
+    const roleMapping = { 'admin': 1, 'customer': 2, 'seller': 4 };
+    const payload = {
+      username: formData.username,
+      email: formData.email,
+      password: formData.password || undefined,
+      role_id: roleMapping[formData.role] || 2
+    };
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8080/api/admin/create-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      const url = editingUser 
+        ? `http://localhost:8080/api/admin/users/${editingUser.id || editingUser.ID}` 
+        : 'http://localhost:8080/api/admin/create-user';
+
+      const response = await fetch(url, {
+        method: editingUser ? 'PUT' : 'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || 'Не удалось создать пользователя');
+        const errorText = await response.text();
+        throw new Error(errorText || 'Не удалось выполнить действие');
       }
 
-      // Если всё успешно: обновляем список, закрываем модалку и чистим форму
-      await fetchUsers(); 
+      await fetchUsers();
       setIsModalOpen(false);
-      setFormData({ username: '', email: '', password: '', role: 'customer' });
     } catch (err) {
       setFormError(err.message);
-      
-      // Имитация для демонстрации, если бэкенд не запущен
-      if (isMocked) {
-        const newUser = {
-          id: users.length + 1,
-          username: formData.username,
-          email: formData.email,
-          role: formData.role
-        };
-        setUsers([...users, newUser]);
-        setIsModalOpen(false);
-        setFormData({ username: '', email: '', password: '', role: 'customer' });
-      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const openModal = (user = null) => {
+    if (user) {
+      setEditingUser(user);
+      setFormData({ 
+        username: user.username || user.Username, 
+        email: user.email || user.Email, 
+        password: '', 
+        role: (user.role || user.Role || 'customer').toLowerCase() 
+      });
+    } else {
+      setEditingUser(null);
+      setFormData({ username: '', email: '', password: '', role: 'customer' });
+    }
+    setIsModalOpen(true);
   };
 
   const stats = useMemo(() => ({
@@ -107,18 +139,15 @@ const Admin = () => {
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       const uName = (user.username || user.Username || '').toLowerCase();
-      const uEmail = (user.email || user.Email || '').toLowerCase();
       const uRole = (user.role || user.Role || '').toLowerCase();
-      const matchesSearch = uName.includes(searchTerm.toLowerCase()) || uEmail.includes(searchTerm.toLowerCase());
-      const matchesRole = roleFilter === 'all' || uRole === roleFilter;
-      return matchesSearch && matchesRole;
+      return uName.includes(searchTerm.toLowerCase()) && (roleFilter === 'all' || uRole === roleFilter);
     });
   }, [users, searchTerm, roleFilter]);
 
   const getRoleBadgeClass = (role) => {
-    const normRole = (role || '').toLowerCase();
-    if (normRole === 'admin') return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
-    if (normRole === 'seller') return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    const r = (role || '').toLowerCase();
+    if (r === 'admin') return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+    if (r === 'seller') return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
     return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
   };
 
@@ -126,29 +155,16 @@ const Admin = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-10 pb-6 border-b border-gray-800">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Панель Администратора
-            </h1>
-            {isMocked && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
-                Mock Mode
-              </span>
-            )}
-          </div>
-          <p className="text-slate-400 mt-1">Управление учетными записями системы.</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Панель Администратора
+          </h1>
         </div>
-        
-        <div className="flex items-center gap-4">
-            {/* ТЕПЕРЬ КНОПКА ОТКРЫВАЕТ МОДАЛКУ */}
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 active:scale-95"
-            >
-                <UserPlus className="w-5 h-5" />
-                Новый пользователь
-            </button>
-        </div>
+        <button 
+          onClick={() => openModal()}
+          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/10 active:scale-95"
+        >
+          <UserPlus className="w-5 h-5" /> Новый пользователь
+        </button>
       </header>
 
       {/* Статистика */}
@@ -171,12 +187,12 @@ const Admin = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-gray-800 self-start">
+        <div className="flex bg-slate-950 p-1 rounded-xl border border-gray-800">
             {['all', 'admin', 'seller', 'customer'].map(role => (
                 <button 
                     key={role}
                     onClick={() => setRoleFilter(role)}
-                    className={`px-4 py-1.5 rounded-lg text-sm transition-all capitalize ${roleFilter === role ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-all ${roleFilter === role ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-200'}`}
                 >
                     {role === 'all' ? 'Все' : role}
                 </button>
@@ -186,17 +202,14 @@ const Admin = () => {
 
       {/* Таблица */}
       <div className="bg-gray-900/30 border border-gray-800 rounded-2xl overflow-hidden backdrop-blur-sm">
-        {loading ? (
-            <div className="p-20 text-center text-slate-500">Загрузка данных...</div>
-        ) : (
-            <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse">
             <thead className="bg-gray-950/40 text-slate-400 text-xs uppercase tracking-wider">
                 <tr>
-                <th className="p-4 font-semibold">ID</th>
-                <th className="p-4 font-semibold">Имя</th>
-                <th className="p-4 font-semibold">Email</th>
-                <th className="p-4 text-center font-semibold">Роль</th>
-                <th className="p-4 text-right font-semibold">Действия</th>
+                    <th className="p-4 font-semibold">ID</th>
+                    <th className="p-4 font-semibold">Имя</th>
+                    <th className="p-4 font-semibold">Email</th>
+                    <th className="p-4 text-center font-semibold">Роль</th>
+                    <th className="p-4 text-right font-semibold">Действия</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
@@ -206,122 +219,61 @@ const Admin = () => {
                     <td className="p-4 font-medium text-slate-200">{user.username || user.Username}</td>
                     <td className="p-4 text-slate-400">{user.email || user.Email}</td>
                     <td className="p-4 text-center">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${getRoleBadgeClass(user.role || user.Role)}`}>
-                        {user.role || user.Role}
-                    </span>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${getRoleBadgeClass(user.role || user.Role)}`}>
+                            {user.role || user.Role}
+                        </span>
                     </td>
                     <td className="p-4 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button title="Редактировать" className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-all">
-                            <Edit className="w-4 h-4" />
-                        </button>
-                        <button title="Удалить" className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-lg transition-all">
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    </div>
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            
+                            <button onClick={() => deleteUser(user.id || user.ID)} title="Удалить" className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-lg transition-all">
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 ))}
             </tbody>
-            </table>
-        )}
-        {!loading && filteredUsers.length === 0 && (
-            <div className="p-20 text-center flex flex-col items-center gap-3">
-                <AlertCircle className="w-10 h-10 text-slate-600" />
-                <p className="text-slate-500">Пользователи не найдены</p>
-            </div>
-        )}
+        </table>
       </div>
 
-      {/* КОМПОНЕНТ МОДАЛЬНОГО ОКНА */}
+      {/* МОДАЛКА */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-gray-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-gray-800 w-full max-w-md rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-gray-800 bg-gray-950/40">
               <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-indigo-400" />
-                Создать пользователя
+                <UserPlus className="w-5 h-5 text-indigo-400" /> 
+                {editingUser ? 'Редактировать' : 'Создать'} пользователя
               </h2>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-gray-800 rounded-lg transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setIsModalOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-gray-800 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-              {formError && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm rounded-xl flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
+            <form onSubmit={handleSaveUser} className="p-6 space-y-4">
+              {formError && <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm rounded-xl">{formError}</div>}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Имя пользователя</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="Ivan_Ivanov" 
-                  className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 outline-none transition-all"
-                  value={formData.username}
-                  onChange={(e) => setFormData({...formData, username: e.target.value})}
-                />
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Имя</label>
+                <input type="text" required className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 outline-none" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Email</label>
-                <input 
-                  type="email" 
-                  required
-                  placeholder="example@mail.ru" 
-                  className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 outline-none transition-all"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                />
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Email</label>
+                <input type="email" required className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 outline-none" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Пароль</label>
-                <input 
-                  type="password" 
-                  required
-                  placeholder="••••••••" 
-                  className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 outline-none transition-all"
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                />
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Пароль</label>
+                <input type="password" placeholder={editingUser ? "Оставьте пустым, чтобы не менять" : "••••••••"} className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 outline-none" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Роль системы</label>
-                <select 
-                  className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer"
-                  value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value})}
-                >
-                  <option value="customer">Customer (Покупатель)</option>
-                  <option value="seller">Seller (Продавец)</option>
-                  <option value="admin">Admin (Администратор)</option>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-2">Роль</label>
+                <select className="w-full bg-slate-950 border border-gray-800 rounded-xl px-4 py-2.5 text-slate-200 outline-none" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
+                  <option value="customer">Customer</option>
+                  <option value="seller">Seller</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-800 mt-6">
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 text-sm text-slate-400 hover:text-slate-200 hover:bg-gray-800 rounded-xl transition-all"
-                >
-                  Отмена
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 disabled:cursor-not-allowed text-white px-5 py-2.5 text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-600/10"
-                >
-                  {isSubmitting ? 'Создание...' : 'Сохранить'}
-                </button>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-800">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2.5 text-sm text-slate-400 hover:text-slate-200 hover:bg-gray-800 rounded-xl">Отмена</button>
+                <button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 text-sm rounded-xl">{isSubmitting ? 'Сохранение...' : 'Сохранить'}</button>
               </div>
             </form>
           </div>

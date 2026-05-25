@@ -48,3 +48,26 @@ func GetProductsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(products)
 }
 
+func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
+    var cart []struct {
+        ID    int `json:"id"`
+        Count int `json:"count"`
+    }
+
+    if err := json.NewDecoder(r.Body).Decode(&cart); err != nil {
+        http.Error(w, "Ошибка данных", http.StatusBadRequest)
+        return
+    }
+
+    // Для каждого товара из корзины вызываем функцию обновления
+    for _, item := range cart {
+        err := repository.ReduceProductQuantity(item.ID, item.Count)
+        if err != nil {
+            http.Error(w, "Ошибка при обновлении склада", http.StatusInternalServerError)
+            return
+        }
+    }
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{"message": "Заказ оформлен"})
+}

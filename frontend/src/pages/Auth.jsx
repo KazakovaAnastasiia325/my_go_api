@@ -30,7 +30,7 @@ const Auth = () => {
         
         localStorage.setItem('token', result.token);
         localStorage.setItem('role', result.role); 
-
+        localStorage.setItem('userId', result.user_id);
         const normRole = (result.role || '').toLowerCase();
         
         // Исправлено: Маршруты должны совпадать с теми, что в App.jsx
