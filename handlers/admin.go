@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// CreateSellerHandler — создание пользователя
+//создание пользователя
 func CreateSellerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
@@ -40,7 +40,7 @@ func CreateSellerHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Пользователь успешно создан"))
 }
 
-// GetUsersHandler — получение списка всех пользователей
+// получение списка всех пользователей
 func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 	users, err := repository.GetAllUsers()
 	if err != nil {
@@ -56,7 +56,7 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(users)
 }
 
-// DeleteUserHandler — удаление пользователя по ID
+// удаление пользователя по ID
 func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
@@ -78,9 +78,6 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-
-
-// --- Хендлеры отдачи страниц ---
 
 func CreateSellerPageHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "view/create_seller.html")

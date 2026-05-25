@@ -26,7 +26,7 @@ func RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ЛОГИКА: При обычной регистрации мы всегда ставим роль 'customer'.
-	// В твоей новой таблице roles это ID 2.
+
 	customerRoleID := 2
 
 	// Вызываем сервис, передавая числовой ID вместо строки "customer"

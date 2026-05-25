@@ -19,7 +19,6 @@ function App() {
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
-          {/* ДОБАВЛЕННЫЙ РОУТ, КОТОРЫЙ ИЩЕТ КНОПКА ИЗ АДМИНКИ */}
           <Route path="/create-seller" element={<CreateSellerStub />} /> 
           <Route path="/customer-dashboard" element={<Customer />} />
           <Route path="/catalog-dashboard" element={<Catalog />} />

@@ -30,7 +30,6 @@ func SetupRoutes() http.Handler {
 	mux.HandleFunc("/api/admin/users", handlers.GetUsersHandler)
 
 	// Обработка операций с конкретным пользователем (PUT / DELETE)
-	// Мы используем "/api/admin/users/" (со слешем), чтобы перехватывать запросы типа /api/admin/users/1
 	mux.HandleFunc("/api/admin/users/", func(w http.ResponseWriter, r *http.Request) {
 		// Логика маршрутизации для динамического ID
 		if r.Method == http.MethodPut {
@@ -43,7 +42,7 @@ func SetupRoutes() http.Handler {
 
 	mux.HandleFunc("/api/products", handlers.ProductsHandler)
 	mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
-	mux.HandleFunc("/api/products/", handlers.ProductByIDHandler) // Поправил на /{id} -> /
+	mux.HandleFunc("/api/products/", handlers.ProductByIDHandler) 
 
 	fs := http.FileServer(http.Dir("./uploads"))
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", fs))

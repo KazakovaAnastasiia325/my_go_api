@@ -45,13 +45,11 @@ const Reg = () => {
   };
 
   return (
-    /* ВАЖНО: bg-[#020617] — это экстремально темный синий/черный, как в Auth */
+
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#020617] selection:bg-indigo-500/30">
-      
-      {/* Карточка: убрал лишнюю светлость, добавил прозрачность gray-900/40 */}
+
       <div className="w-full max-w-md bg-gray-900/40 backdrop-blur-2xl border border-white/5 p-8 rounded-3xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] relative overflow-hidden">
-        
-        {/* Та самая светящаяся полоска сверху */}
+
         <div className="absolute top-0 left-1/4 w-1/2 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
         
         {/* Логотип */}

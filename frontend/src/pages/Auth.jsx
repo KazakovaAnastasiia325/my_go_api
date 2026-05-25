@@ -18,7 +18,7 @@ const Auth = () => {
     const data = { username, password };
 
     try {
-      // Исправлено: Добавляем полный путь к Go-серверу (проверь свой порт!)
+      // Исправлено: Добавляем полный путь к Go-серверу
       const response = await fetch('http://localhost:8080/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -9,7 +9,7 @@ const MOCK_PRODUCTS = [
 ];
 
 const Seller = () => {
-  // 1. ИНИЦИАЛИЗАЦИЯ: берем ID из хранилища. Больше никаких восьмерок по умолчанию!
+  // ИНИЦИАЛИЗАЦИЯ: берем ID из хранилища. Больше никаких восьмерок по умолчанию!
   const [currentUserId, setCurrentUserId] = useState(() => {
     const saved = localStorage.getItem('userId');
     return (saved && saved !== "undefined" && saved !== "null") ? saved : null;
@@ -37,7 +37,7 @@ const Seller = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [notification, setNotification] = useState(null);
 
-  // 2. СИНХРОНИЗАЦИЯ: Следим за localStorage
+  // СИНХРОНИЗАЦИЯ: Следим за localStorage
   useEffect(() => {
     const syncId = () => {
       const id = localStorage.getItem('userId');
@@ -48,7 +48,7 @@ const Seller = () => {
     return () => window.removeEventListener('storage', syncId);
   }, []);
 
-  // 3. ПОЛУЧЕНИЕ ТОВАРОВ (только если есть ID)
+  // ПОЛУЧЕНИЕ ТОВАРОВ (только если есть ID)
   const fetchProducts = async () => {
     if (!currentUserId) {
         console.warn(" fetchProducts отменен: userId отсутствует");
@@ -73,7 +73,7 @@ const Seller = () => {
     fetchProducts();
   }, [currentUserId]);
 
-  // 4. ВЫЧИСЛЯЕМАЯ СТАТИСТИКА
+  // ВЫЧИСЛЯЕМАЯ СТАТИСТИКА
   const stats = useMemo(() => {
     const totalItems = products.length;
     const totalQty = products.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
@@ -95,7 +95,7 @@ const Seller = () => {
     });
   }, [products, searchTerm, statusFilter]);
 
-  // 5. ЛОГИКА МОДАЛЬНОГО ОКНА
+  // ЛОГИКА МОДАЛЬНОГО ОКНА
   const openAddModal = () => {
     if (!currentUserId) return alert("Ошибка: ID пользователя не найден. Перезайдите в систему.");
     setFormMode('add');

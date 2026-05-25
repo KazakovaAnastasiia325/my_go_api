@@ -23,8 +23,7 @@ func AuthenticateUserHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // ТУТ ВАЖНО: Добавь userID в возвращаемые значения сервиса
-    // Если твой сервис еще не возвращает ID, тебе нужно поправить и service.AuthenticateUser
+
     token, role, userID, err := service.AuthenticateUser(user.Username, user.Password)
     if err != nil {
         http.Error(w, "Ошибка авторизации", http.StatusUnauthorized)

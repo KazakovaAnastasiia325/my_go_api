@@ -6,7 +6,7 @@ const Catalog = () => {
     const [cart, setCart] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
 
-    // Загрузка товаров с твоего Go-бэкенда
+    // Загрузка товаров
     useEffect(() => {
         fetch('http://localhost:8080/api/catalog-products') 
             .then(res => res.json())
@@ -77,7 +77,7 @@ const Catalog = () => {
                 </div>
             </main>
 
-            {/* Корзина (Drawer) */}
+            {/* Корзина */}
             {isCartOpen && (
                 <div className="fixed inset-0 z-50 overflow-hidden">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />

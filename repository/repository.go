@@ -10,7 +10,7 @@ import (
 // --- ПОЛЬЗОВАТЕЛИ ---
 
 func CreateUser(user models.User) error {
-	// Убедись, что в твоей модели User поле называется Password (или PasswordHash)
+
 	query := `INSERT INTO users (username, email, password_hash, role_id) VALUES ($1, $2, $3, $4)`
 	_, err := database.DB.Exec(context.Background(), query, user.Username, user.Email, user.Password, user.RoleID)
 	if err != nil {
@@ -38,7 +38,7 @@ func GetUserByUsername(username string) (models.User, error) {
 }
 
 func GetAllUsers() ([]models.User, error) {
-	// Тоже добавляем JOIN, чтобы в админке было видно "admin/customer", а не просто цифры
+
 	query := `
 		SELECT u.id, u.username, u.email, u.role_id, r.name 
 		FROM users u

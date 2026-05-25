@@ -26,7 +26,7 @@ func SellerDashboardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ProductsHandler(w http.ResponseWriter, r *http.Request) {
-    // CORS логика (если нужна)
+    
     if r.Method == http.MethodOptions {
         w.WriteHeader(http.StatusOK)
         return
@@ -86,7 +86,7 @@ func ProductsHandler(w http.ResponseWriter, r *http.Request) {
 
         if sellerIDStr != "" {
             sid, _ := strconv.Atoi(sellerIDStr)
-            // ВНИМАНИЕ: Проверь, чтобы в repository.GetProductsBySeller был WHERE seller_id = ?
+            
             products, err = repository.GetProductsBySeller(sid)
         } else {
             products, err = repository.GetAllProducts()
@@ -120,7 +120,7 @@ func ProductByIDHandler(w http.ResponseWriter, r *http.Request) {
         price, _ := strconv.ParseFloat(r.FormValue("price"), 64)
         quantity, _ := strconv.Atoi(r.FormValue("quantity"))
         
-        // ВАЖНО: Мы больше не используем sellerID для обновления!
+        
         
         var imagePath string
         file, handler, err := r.FormFile("image")
@@ -136,7 +136,7 @@ func ProductByIDHandler(w http.ResponseWriter, r *http.Request) {
             imagePath = r.FormValue("old_image_url") 
         }
 
-        // ВЫЗОВ БЕЗ sellerID
+        
         err = repository.UpdateProduct(id, name, description, price, quantity, imagePath)
         if err != nil {
             http.Error(w, "Ошибка обновления", http.StatusInternalServerError)

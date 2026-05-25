@@ -15,8 +15,6 @@ func AuthenticateUser(username, password string) (string, string, int, error) {
 		return "", "", 0, fmt.Errorf("Ошибка при получении пользователя: %w", err)
 	}
 
-	// ВАЖНО: убедись, что имя поля совпадает с тем, что в repository.Scan
-	// Если в Scan ты написала &user.Password, то и тут должно быть user.Password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return "", "", 0, fmt.Errorf("Неверный пароль")
