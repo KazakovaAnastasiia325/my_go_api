@@ -113,6 +113,7 @@ const Customer = () => {
             console.error("Checkout error:", err);
             alert("Ошибка связи с сервером. Проверьте метод POST в Go.");
         }
+        
     };
 
     return (

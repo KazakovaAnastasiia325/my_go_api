@@ -7,6 +7,9 @@ import (
 	
 	"net/http"
 )
+var HubInstance interface {
+    BroadcastChan() chan []byte
+}
 func CustomerDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -59,13 +62,18 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Для каждого товара из корзины вызываем функцию обновления
     for _, item := range cart {
         err := repository.ReduceProductQuantity(item.ID, item.Count)
         if err != nil {
             http.Error(w, "Ошибка при обновлении склада", http.StatusInternalServerError)
             return
         }
+    }
+
+    // ОТПРАВКА УВЕДОМЛЕНИЯ через WebSocket
+    if HubInstance != nil {
+        msg := []byte(`{"type": "ORDER_SUCCESS", "message": "Заказ успешно оформлен!"}`)
+        HubInstance.BroadcastChan() <- msg
     }
 
     w.WriteHeader(http.StatusOK)

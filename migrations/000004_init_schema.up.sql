@@ -6,7 +6,7 @@ CREATE TABLE roles (
 
 );
 INSERT INTO roles (name) VALUES ('admin'), ('customer');
-ALTER TABLE users ADD COLUMN role_id INTEGER REFERENCES roles(id);
+
 ALTER TABLE users DROP COLUMN role; 
 UPDATE users SET role_id = 1 WHERE username = 'admin';
 UPDATE users SET role_id = 1 WHERE username = 'admin1';
