@@ -52,11 +52,18 @@ const Customer = () => {
 
     const filteredProducts = useMemo(() => {
         return products.filter(p => {
+            // Приводим все к нижнему регистру для поиска
             const name = (p.Name || p.name || '').toLowerCase();
+            const description = (p.Description || p.description || '').toLowerCase();
+            const query = searchTerm.toLowerCase();
+            
+            // Поиск вхождения запроса в название ИЛИ описание
+            const matchesSearch = name.includes(query) || description.includes(query);
+            
             const price = p.Price || p.price || 0;
             const qty = p.Quantity !== undefined ? p.Quantity : p.quantity;
             
-            return name.includes(searchTerm.toLowerCase()) && 
+            return matchesSearch && 
                    price <= maxPrice && 
                    (!onlyInStock || qty > 0);
         });
