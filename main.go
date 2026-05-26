@@ -27,11 +27,12 @@ func main() {
     database.InitDB(connStr)
     defer database.DB.Close()
 	
-	go hub.Run() // Запускаем цикл хаба
+	go hub.Run() 
+	http.HandleFunc("/ws", hub.HandleConnections)// Запускаем цикл хаба
 	repository.SeedAdmin()
     mux := middleware.SetupRoutes()
 	handlerWithCORS := middleware.EnableCORS(mux)
-	http.HandleFunc("/ws", hub.HandleConnections)
+	
     fmt.Println("Сервер запущен на http://localhost:8080")
     if err := http.ListenAndServe(":8080", handlerWithCORS); err != nil {
         log.Fatal(err)

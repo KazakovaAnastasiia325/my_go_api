@@ -113,7 +113,29 @@ const Customer = () => {
             console.error("Checkout error:", err);
             alert("Ошибка связи с сервером. Проверьте метод POST в Go.");
         }
-        
+        useEffect(() => {
+        const socket = new WebSocket("ws://localhost:8080/ws");
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            // Показываем уведомление пользователю
+            if (data.type === "ORDER_SUCCESS") {
+                toast.success(data.message);
+            } else {
+                toast(data.message);
+            }
+        };
+
+        return () => socket.close();
+    }, []);
+
+    return (
+        <div className="min-h-screen ...">
+            <Toaster position="top-right" /> {/* Добавьте этот компонент */}
+            {/* ... ваш контент ... */}
+        </div>
+    );
     };
 
     return (

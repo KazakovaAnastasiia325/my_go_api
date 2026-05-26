@@ -151,3 +151,8 @@ func DeleteUser(id int) error {
 	return nil
 }
 
+func UpdateOrderStatus(orderID int, status string) error {
+	query := `UPDATE orders SET status = $1 WHERE id = $2`
+	_, err := database.DB.Exec(context.Background(), query, status, orderID)
+	return err
+}
