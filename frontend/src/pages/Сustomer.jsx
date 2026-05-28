@@ -197,44 +197,44 @@ const markAllAsRead = async () => {
 )}
                 <div className="relative overflow-hidden bg-gradient-to-r from-indigo-950/40 to-slate-900/40 border border-indigo-500/10 rounded-3xl p-10 mb-10 shadow-2xl">
                     <h1 className="text-4xl font-black mt-4 mb-2">Каталог товаров</h1>
-                    <p className="text-slate-400 max-w-xl">Все товары проходят проверку качества в нашей лаборатории.</p>
+                    <p className="text-slate-400 max-w-xl">Все товары проходят проверку качества.</p>
                 </div>
 
                 {/* Горизонтальная панель фильтров */}
-                <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-2xl mb-8 flex flex-wrap items-center gap-8">
-                    <div className="flex-1 min-w-[250px]">
-                        <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Поиск</label>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                            <input 
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full bg-black/40 border border-gray-800 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-indigo-500 outline-none"
-                                placeholder="Название или описание..."
-                            />
-                        </div>
-                    </div>
+                <div className="sticky top-19 z-40 bg-[#090d16]/95 backdrop-blur-md border border-gray-800 p-6 rounded-2xl mb-8 flex flex-wrap items-center gap-8 shadow-xl">
+    <div className="flex-1 min-w-[250px]">
+        <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Поиск</label>
+        <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-black/40 border border-gray-800 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-indigo-500 outline-none"
+                placeholder="Название или описание..."
+            />
+        </div>
+    </div>
 
-                    <div className="w-64">
-                        <div className="flex justify-between text-[10px] uppercase font-bold mb-2">
-                            <span className="text-slate-500">Цена до:</span>
-                            <span className="text-indigo-400">{maxPrice.toLocaleString()} ₸</span>
-                        </div>
-                        <input 
-                            type="range" min="0" max={highestProductPrice} value={maxPrice}
-                            onChange={e => setMaxPrice(Number(e.target.value))}
-                            className="w-full accent-indigo-500"
-                        />
-                    </div>
+    <div className="w-64">
+        <div className="flex justify-between text-[10px] uppercase font-bold mb-2">
+            <span className="text-slate-500">Цена до:</span>
+            <span className="text-indigo-400">{maxPrice.toLocaleString()} ₸</span>
+        </div>
+        <input 
+            type="range" min="0" max={highestProductPrice} value={maxPrice}
+            onChange={e => setMaxPrice(Number(e.target.value))}
+            className="w-full accent-indigo-500"
+        />
+    </div>
 
-                    <label className="flex items-center gap-3 cursor-pointer mt-4">
-                        <input type="checkbox" checked={onlyInStock} onChange={e => setOnlyInStock(e.target.checked)} className="hidden" />
-                        <div className={`w-10 h-5 rounded-full transition-all border ${onlyInStock ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700'}`}>
-                            <div className={`w-3 h-3 bg-white rounded-full mt-0.5 transition-all ${onlyInStock ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </div>
-                        <span className="text-sm font-medium">Только в наличии</span>
-                    </label>
-                </div>
+    <label className="flex items-center gap-3 cursor-pointer mt-4">
+        <input type="checkbox" checked={onlyInStock} onChange={e => setOnlyInStock(e.target.checked)} className="hidden" />
+        <div className={`w-10 h-5 rounded-full transition-all border ${onlyInStock ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700'}`}>
+            <div className={`w-3 h-3 bg-white rounded-full mt-0.5 transition-all ${onlyInStock ? 'translate-x-6' : 'translate-x-1'}`} />
+        </div>
+        <span className="text-sm font-medium">Только в наличии</span>
+    </label>
+</div>
 
                 {/* Сетка товаров */}
                 {loading ? (
