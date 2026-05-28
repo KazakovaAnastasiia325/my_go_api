@@ -82,6 +82,8 @@ mux.Handle("/uploads/", http.StripPrefix("/uploads/", fs))
     mux.HandleFunc("/api/products", handlers.ProductsHandler)
     mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
     mux.HandleFunc("/api/products/", handlers.ProductByIDHandler)
+	mux.HandleFunc("/api/notifications", AuthMiddleware(handlers.GetNotificationsHandler))
+	mux.HandleFunc("/api/notifications/read", AuthMiddleware(handlers.MarkAllReadHandler))
 	
 
 	return EnableCORS(mux)

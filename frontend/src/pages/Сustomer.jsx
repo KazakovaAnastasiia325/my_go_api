@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     ShoppingCart, Search, SlidersHorizontal, Plus, X, 
-    ShoppingBasket, Image as ImageIcon, LogOut 
+    ShoppingBasket, Image as ImageIcon, LogOut, Bell 
 } from 'lucide-react';
 
 const MOCK_PRODUCTS = [
@@ -17,7 +17,8 @@ const Customer = () => {
     const [onlyInStock, setOnlyInStock] = useState(false);
     const [cart, setCart] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
-
+    const [notifications, setNotifications] = useState([]);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
     const handleLogout = () => {
         localStorage.removeItem('token');
         window.location.href = '/auth';
@@ -37,11 +38,44 @@ const Customer = () => {
             setLoading(false);
         }
     };
-
+    const fetchNotifications = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const res = await fetch('http://localhost:8080/api/notifications', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setNotifications(data || []);
+            }
+        } catch (err) { console.error("Ошибка получения уведомлений", err); }
+    };
     useEffect(() => {
         fetchProducts();
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(interval);
     }, []);
-
+const markAllAsRead = async () => {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('http://localhost:8080/api/notifications/read', {
+            method: 'POST', // Используем POST, так как меняем данные
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            // Если запрос успешен, помечаем все локально, чтобы не делать лишний fetch
+            setNotifications(prev => prev.map(n => ({...n, is_read: true})));
+        }
+    } catch (err) {
+        console.error("Ошибка при обновлении статусов:", err);
+    }
+};
     const highestProductPrice = useMemo(() => {
         if (!products.length) return 100000;
         return Math.max(...products.map(p => p.Price || p.price || 0));
@@ -97,6 +131,7 @@ const Customer = () => {
                 alert("Заказ оформлен!");
                 setCart([]);
                 setIsCartOpen(false);
+                fetchNotifications();
             } else {
                 const err = await response.text();
                 alert("Ошибка сервера: " + err);
@@ -115,6 +150,10 @@ const Customer = () => {
                         <span className="text-xl font-bold bg-gradient-to-r from-indigo-300 to-pink-300 bg-clip-text text-transparent">CyberMart</span>
                     </div>
                     <div className="flex items-center gap-3">
+                        <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 transition-all">
+                            <Bell className="w-5 h-5 text-indigo-400" />
+                            {notifications.filter(n => !n.is_read).length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse" />}
+                        </button>
                         <button onClick={handleLogout} className="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 hover:text-rose-400 transition-all">
                             <LogOut className="w-5 h-5" />
                         </button>
@@ -132,6 +171,30 @@ const Customer = () => {
             </nav>
 
             <main className="max-w-7xl mx-auto px-6 py-10">
+                {isNotifOpen && (
+    <div className="absolute right-20 top-20 w-80 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 p-4">
+        <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold">Уведомления</h3>
+            {notifications.some(n => !n.is_read) && (
+                <button 
+                    onClick={markAllAsRead}
+                    className="text-[10px] text-indigo-400 hover:text-indigo-300 uppercase font-bold"
+                >
+                    Прочитать все
+                </button>
+            )}
+        </div>
+        <div className="space-y-3 max-h-60 overflow-y-auto">
+            {notifications.length === 0 ? <p className="text-sm text-slate-500">Уведомлений нет</p> : 
+            notifications.map(n => (
+                <div key={n.id} className={`p-3 rounded-lg border text-sm ${n.is_read ? 'bg-gray-950 border-gray-800' : 'bg-indigo-950/20 border-indigo-500/30'}`}>
+                    <p className={n.is_read ? 'text-slate-400' : 'text-white'}>{n.message}</p>
+                    <span className="text-[10px] text-slate-500">{new Date(n.created_at).toLocaleTimeString()}</span>
+                </div>
+            ))}
+        </div>
+    </div>
+)}
                 <div className="relative overflow-hidden bg-gradient-to-r from-indigo-950/40 to-slate-900/40 border border-indigo-500/10 rounded-3xl p-10 mb-10 shadow-2xl">
                     <h1 className="text-4xl font-black mt-4 mb-2">Каталог товаров</h1>
                     <p className="text-slate-400 max-w-xl">Все товары проходят проверку качества в нашей лаборатории.</p>

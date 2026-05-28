@@ -179,3 +179,33 @@ func GetProductByID(id int) (models.Product, error) {
 	}
 	return p, nil
 }
+func CreateNotification(userID int, message string) error {
+    query := `INSERT INTO notifications (user_id, message) VALUES ($1, $2)`
+    _, err := database.DB.Exec(context.Background(), query, userID, message)
+    return err
+}
+func GetUserNotifications(userID int) ([]models.Notification, error) {
+    query := `SELECT id, message, is_read, created_at FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`
+    
+    rows, err := database.DB.Query(context.Background(), query, userID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var notifs []models.Notification
+    for rows.Next() {
+        var n models.Notification
+        
+        if err := rows.Scan(&n.ID, &n.Message, &n.IsRead, &n.CreatedAt); err != nil {
+            return nil, err
+        }
+        notifs = append(notifs, n)
+    }
+    return notifs, nil
+}
+func MarkNotificationsAsRead(userID int) error {
+    query := `UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false`
+    _, err := database.DB.Exec(context.Background(), query, userID)
+    return err
+}
