@@ -152,7 +152,30 @@ func DeleteUser(id int) error {
 }
 
 func UpdateOrderStatus(orderID int, status string) error {
-	query := `UPDATE orders SET status = $1 WHERE id = $2`
-	_, err := database.DB.Exec(context.Background(), query, status, orderID)
-	return err
+	query := "UPDATE orders SET status = $1 WHERE id = $2"
+    _, err := database.DB.Exec(context.Background(), query, status, orderID)
+    if err != nil {
+        return err
+    }
+    return nil
+}
+func CreateOrder(userID int, totalPrice float64) (int, error) {
+    var orderID int
+    // Создаем заказ и сразу получаем его ID
+    query := `INSERT INTO orders (user_id, status, total_price) VALUES ($1, 'Оплачен', $2) RETURNING id`
+    err := database.DB.QueryRow(context.Background(), query, userID, totalPrice).Scan(&orderID)
+    if err != nil {
+        return 0, fmt.Errorf("ошибка при создании записи заказа: %v", err)
+    }
+    return orderID, nil
+}
+
+func GetProductByID(id int) (models.Product, error) {
+	var p models.Product
+	query := "SELECT id, name, description, price, seller_id, quantity, image_url FROM products WHERE id = $1"
+	err := database.DB.QueryRow(context.Background(), query, id).Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.SellerID, &p.Quantity, &p.ImageURL)
+	if err != nil {
+		return p, fmt.Errorf("товар не найден: %w", err)
+	}
+	return p, nil
 }

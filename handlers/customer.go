@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"my_api/repository"
 )
 
-// HubInstance определяет интерфейс для работы с WebSocket хабом
 var HubInstance interface {
 	BroadcastChan() chan []byte
 }
@@ -58,59 +58,105 @@ func GetProductsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Проверка метода
 	if r.Method != http.MethodPost {
-		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
-		return
-	}
+        http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+        return
+    }
 
-	var cart []struct {
-		ID    int `json:"id"`
-		Count int `json:"count"`
-	}
+    var cart []struct {
+        ID    int `json:"id"`
+        Count int `json:"count"`
+    }
 
-	if err := json.NewDecoder(r.Body).Decode(&cart); err != nil {
-		http.Error(w, "Ошибка данных", http.StatusBadRequest)
-		return
-	}
+    if err := json.NewDecoder(r.Body).Decode(&cart); err != nil {
+        http.Error(w, "Ошибка формата данных", http.StatusBadRequest)
+        return
+    }
 
-	// 1. Обновление склада
-	for _, item := range cart {
-		err := repository.ReduceProductQuantity(item.ID, item.Count)
-		if err != nil {
-			http.Error(w, "Ошибка при обновлении склада", http.StatusInternalServerError)
-			return
-		}
-	}
+    // БЕЗОПАСНОЕ приведение типа
+   userIDVal := r.Context().Value("userID")
+if userIDVal == nil {
+    http.Error(w, "Не авторизован", http.StatusUnauthorized)
+    return
+}
 
-	// 2. Создание записи заказа (предполагаем, что функция возвращает ID заказа)
-	orderID := 123 // Здесь должен быть реальный вызов: repository.CreateOrder(...)
+// Приводим ID к типу int, учитывая особенности JSON-декодинга
+var userID int
+switch v := userIDVal.(type) {
+case int:
+    userID = v
+case float64:
+    userID = int(v) // JSON часто парсит числа как float64
+case string:
+    // Если ID пришел как строка, пробуем сконвертировать
+    parsedID, err := strconv.Atoi(v)
+    if err != nil {
+        http.Error(w, "Неверный формат ID пользователя", http.StatusBadRequest)
+        return
+    }
+    userID = parsedID
+default:
+    http.Error(w, "Неподдерживаемый тип ID пользователя", http.StatusInternalServerError)
+    return
+}
 
-	// 3. Асинхронное обновление статусов (горутина)
+    // ПРОВЕРКА и СЧЕТ (без немедленного списания)
+    var totalPrice float64
+    for _, item := range cart {
+        product, err := repository.GetProductByID(item.ID)
+        if err != nil {
+            http.Error(w, "Товар не найден", http.StatusNotFound)
+            return
+        }
+        if product.Quantity < item.Count {
+            http.Error(w, "Недостаточно товара на складе", http.StatusConflict)
+            return
+        }
+        totalPrice += product.Price * float64(item.Count)
+    }
+
+    // ОПЕРАЦИИ В БД
+    // 1. Создаем заказ
+    orderID, err := repository.CreateOrder(userID, totalPrice)
+    if err != nil {
+        http.Error(w, "Ошибка создания заказа", http.StatusInternalServerError)
+        return
+    }
+
+    // 2. Списываем остатки (только если заказ успешно создан)
+    for _, item := range cart {
+        err := repository.ReduceProductQuantity(item.ID, item.Count)
+        if err != nil {
+            log.Printf("Критическая ошибка: товар списан неверно! ID: %d", item.ID)
+        }
+    }
+	// 6. Фоновое обновление статуса (Асинхронно)
 	go func(id int) {
 		statuses := []string{"Собран", "Отправлен", "Доставлен"}
-
 		for _, status := range statuses {
-			// Имитация времени на выполнение этапа
-			time.Sleep(10 * time.Second) 
+			time.Sleep(10 * time.Second) // Уменьшил для теста
 
-			// Обновляем в БД
-			_ = repository.UpdateOrderStatus(id, status)
+			err := repository.UpdateOrderStatus(id, status)
+			if err != nil {
+				log.Printf("Ошибка обновления статуса %d: %v", id, err)
+				continue
+			}
 
-			// Шлем уведомление клиенту
 			if HubInstance != nil {
 				msg, _ := json.Marshal(map[string]string{
-					"type":    "ORDER_STATUS_UPDATE",
-					"orderID": strconv.Itoa(id),
-					"status":  status,
-					"message": fmt.Sprintf("Ваш заказ №%d теперь в статусе: %s", id, status),
+					"type":    "ORDER_SUCCESS",
+					"message": fmt.Sprintf("Заказ №%d: %s", id, status),
 				})
 				HubInstance.BroadcastChan() <- msg
 			}
 		}
 	}(orderID)
 
-	// 4. Мгновенный ответ клиенту
+	// 7. Успешный ответ
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Заказ успешно оформлен и передан в обработку"})
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "message": "Заказ успешно оформлен",
+        "orderID": orderID,
+    })
 }
