@@ -172,7 +172,7 @@ const markAllAsRead = async () => {
 
             <main className="max-w-7xl mx-auto px-6 py-10">
                 {isNotifOpen && (
-    <div className="absolute right-20 top-20 w-80 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 p-4">
+    <div className="fixed right-20 top-20 w-80 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 p-4">
         <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold">Уведомления</h3>
             {notifications.some(n => !n.is_read) && (
