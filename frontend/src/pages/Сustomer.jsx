@@ -13,15 +13,44 @@ const Customer = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [maxPrice, setMaxPrice] = useState(100000);
+    const [maxPrice, setMaxPrice] = useState(1000000);
     const [onlyInStock, setOnlyInStock] = useState(false);
-    const [cart, setCart] = useState([]);
+    const [toasts, setToasts] = useState([]);
+    
+    const [cart, setCart] = useState(() => {
+        try {
+            const saved = localStorage.getItem('cart');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
+
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
+    const [shownNotifications, setShownNotifications] = useState([]);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    
+    useEffect(() => {
+        localStorage.setItem('cart', JSON.stringify(cart));
+    }, [cart]);
+
     const handleLogout = () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('cart');
         window.location.href = '/auth';
+    };
+
+    const showToast = (message) => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message }]);
+        setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+        }, 5000);
+    };
+
+    const removeToast = (id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
     };
 
     const fetchProducts = async () => {
@@ -38,46 +67,72 @@ const Customer = () => {
             setLoading(false);
         }
     };
+
     const fetchNotifications = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-        try {
-            const res = await fetch('http://localhost:8080/api/notifications', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setNotifications(data || []);
+    const token = localStorage.getItem('token');
+
+    if (!token) return;
+
+    try {
+        const res = await fetch('http://localhost:8080/api/notifications', {
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
-        } catch (err) { console.error("Ошибка получения уведомлений", err); }
-    };
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+
+            const unreadNotifications = data.filter(n => !n.is_read);
+
+            unreadNotifications.forEach(notification => {
+
+                if (!shownNotifications.includes(notification.id)) {
+
+                    showToast(notification.message);
+
+                    setShownNotifications(prev => [
+                        ...prev,
+                        notification.id
+                    ]);
+                }
+            });
+
+            setNotifications(data || []);
+        }
+
+    } catch (err) {
+        console.error("Ошибка получения уведомлений", err);
+    }
+};
+
     useEffect(() => {
         fetchProducts();
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 30000);
         return () => clearInterval(interval);
     }, []);
-const markAllAsRead = async () => {
-    const token = localStorage.getItem('token');
-    try {
-        const response = await fetch('http://localhost:8080/api/notifications/read', {
-            method: 'POST', // Используем POST, так как меняем данные
-            headers: { 
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+
+    const markAllAsRead = async () => {
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch('http://localhost:8080/api/notifications/read', {
+                method: 'POST', 
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (response.ok) {
+                setNotifications(prev => prev.map(n => ({...n, is_read: true})));
             }
-        });
-        
-        if (response.ok) {
-            // Если запрос успешен, помечаем все локально, чтобы не делать лишний fetch
-            setNotifications(prev => prev.map(n => ({...n, is_read: true})));
+        } catch (err) {
+            console.error("Ошибка при обновлении статусов:", err);
         }
-    } catch (err) {
-        console.error("Ошибка при обновлении статусов:", err);
-    }
-};
+    };
+
     const highestProductPrice = useMemo(() => {
-        if (!products.length) return 100000;
+        if (!products.length) return 1000000;
         return Math.max(...products.map(p => p.Price || p.price || 0));
     }, [products]);
 
@@ -94,11 +149,17 @@ const markAllAsRead = async () => {
     }, [products, searchTerm, maxPrice, onlyInStock]);
 
     const addToCart = (product) => {
+        showToast("Товар добавлен в корзину");
         setCart(prev => {
             const id = product.ID || product.id;
             const existing = prev.find(item => item.id === id);
+            const qty = product.Quantity !== undefined ? product.Quantity : product.quantity;
+            
             if (existing) {
-                return prev.map(item => item.id === id ? {...item, count: item.count + 1} : item);
+                if (existing.count < qty) {
+                    return prev.map(item => item.id === id ? {...item, count: item.count + 1} : item);
+                }
+                return prev;
             }
             return [...prev, { 
                 id, 
@@ -109,13 +170,22 @@ const markAllAsRead = async () => {
         });
     };
 
+    const removeFromCart = (id) => {
+        setCart(prev => prev.map(item => {
+            if (item.id === id) {
+                return { ...item, count: item.count - 1 };
+            }
+            return item;
+        }).filter(item => item.count > 0));
+    };
+
     const cartCount = cart.reduce((sum, item) => sum + item.count, 0);
     const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.count), 0);
     
     const handleCheckout = async () => {
         const token = localStorage.getItem('token'); 
         if (!token) {
-            alert("Вы не авторизованы! Пожалуйста, войдите в систему.");
+            showToast("Вы не авторизованы!");
             return;
         }
         try {
@@ -128,26 +198,26 @@ const markAllAsRead = async () => {
                 body: JSON.stringify(cart)
             });
             if (response.ok) {
-                alert("Заказ оформлен!");
+                showToast("Заказ успешно оформлен!");
                 setCart([]);
                 setIsCartOpen(false);
                 fetchNotifications();
             } else {
-                const err = await response.text();
-                alert("Ошибка сервера: " + err);
+                showToast("Ошибка при оформлении");
             }
         } catch (err) {
-            console.error("Ошибка сети:", err);
+            showToast("Ошибка сети");
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#090d16] text-slate-100 font-['Plus_Jakarta_Sans']">
+        <div className="max-h-screen bg-[#090d16] text-slate-100 font-['Plus_Jakarta_Sans']">
             <nav className="sticky top-0 z-50 bg-[#090d16]/80 backdrop-blur-md border-b border-gray-800 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center font-bold text-xl shadow-lg shadow-indigo-500/20 text-white">C</div>
                         <span className="text-xl font-bold bg-gradient-to-r from-indigo-300 to-pink-300 bg-clip-text text-transparent">CyberMart</span>
+                        
                     </div>
                     <div className="flex items-center gap-3">
                         <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 transition-all">
@@ -171,8 +241,9 @@ const markAllAsRead = async () => {
             </nav>
 
             <main className="max-w-7xl mx-auto px-6 py-10">
+              
                 {isNotifOpen && (
-    <div className="fixed right-20 top-20 w-80 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 p-4">
+    <div className="fixed right-50 top-20 w-80 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 p-4">
         <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold">Уведомления</h3>
             {notifications.some(n => !n.is_read) && (
@@ -194,13 +265,9 @@ const markAllAsRead = async () => {
             ))}
         </div>
     </div>
+    
 )}
-                <div className="relative overflow-hidden bg-gradient-to-r from-indigo-950/40 to-slate-900/40 border border-indigo-500/10 rounded-3xl p-10 mb-10 shadow-2xl">
-                    <h1 className="text-4xl font-black mt-4 mb-2">Каталог товаров</h1>
-                    <p className="text-slate-400 max-w-xl">Все товары проходят проверку качества.</p>
-                </div>
-
-                {/* Горизонтальная панель фильтров */}
+  {/* Горизонтальная панель фильтров */}                   
                 <div className="sticky top-19 z-40 bg-[#090d16]/95 backdrop-blur-md border border-gray-800 p-6 rounded-2xl mb-8 flex flex-wrap items-center gap-8 shadow-xl">
     <div className="flex-1 min-w-[250px]">
         <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-2">Поиск</label>
@@ -226,7 +293,6 @@ const markAllAsRead = async () => {
             className="w-full accent-indigo-500"
         />
     </div>
-
     <label className="flex items-center gap-3 cursor-pointer mt-4">
         <input type="checkbox" checked={onlyInStock} onChange={e => setOnlyInStock(e.target.checked)} className="hidden" />
         <div className={`w-10 h-5 rounded-full transition-all border ${onlyInStock ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700'}`}>
@@ -257,31 +323,39 @@ const markAllAsRead = async () => {
                                                 <span className="text-[10px] font-bold uppercase tracking-widest">No Image</span>
                                             </div>
                                         )}
-                                        <div className="absolute top-4 right-4">
-                                            {quantity > 0 ? (
-                                                <span className="text-[10px] bg-emerald-500/20 backdrop-blur-md text-emerald-400 px-2 py-1 rounded-lg border border-emerald-500/30 font-bold">В наличии: {quantity}</span>
-                                            ) : (
-                                                <span className="text-[10px] bg-rose-500/20 backdrop-blur-md text-rose-400 px-2 py-1 rounded-lg border border-rose-500/30 font-bold">Раскуплено</span>
-                                            )}
-                                        </div>
+                                        
                                     </div>
                                     <div className="p-6 flex flex-col flex-1">
-                                        <h4 className="font-bold text-lg mb-2 group-hover:text-indigo-400 transition-colors line-clamp-1">{p.Name || p.name}</h4>
-                                        <p className="text-xs text-slate-400 line-clamp-2 mb-6 font-light">{p.Description || p.description}</p>
-                                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-800/50">
-                                            <div>
-                                                <p className="text-[10px] text-slate-500 uppercase font-bold">Цена</p>
-                                                <span className="text-xl font-black text-white">{(p.Price || p.price).toLocaleString()} ₸</span>
-                                            </div>
-                                            <button 
-                                                onClick={() => addToCart(p)}
-                                                disabled={quantity <= 0}
-                                                className="p-4 bg-indigo-600 rounded-2xl hover:bg-indigo-500 disabled:opacity-20 disabled:grayscale transition-all shadow-lg shadow-indigo-600/20 active:scale-90"
-                                            >
-                                                <Plus className="w-5 h-5 text-white" />
-                                            </button>
-                                        </div>
-                                    </div>
+    <h4 className="font-bold text-lg mb-2 group-hover:text-indigo-400 transition-colors line-clamp-1">{p.Name || p.name}</h4>
+    <p className="text-xs text-slate-400 line-clamp-2 mb-6 font-light">{p.Description || p.description}</p>
+    
+    {/* Добавляем статус наличия здесь, под описанием и над ценой */}
+    <div className="mb-4">
+        {quantity > 0 ? (
+            <span className="text-[10px] bg-emerald-500/20 backdrop-blur-md text-emerald-400 px-2 py-1 rounded-lg border border-emerald-500/30 font-bold inline-block">
+                В наличии: {quantity}
+            </span>
+        ) : (
+            <span className="text-[10px] bg-rose-500/20 backdrop-blur-md text-rose-400 px-2 py-1 rounded-lg border border-rose-500/30 font-bold inline-block">
+                Раскуплено
+            </span>
+        )}
+    </div>
+
+    <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-800/50">
+        <div>
+            <p className="text-[10px] text-slate-500 uppercase font-bold">Цена</p>
+            <span className="text-xl font-black text-white">{(p.Price || p.price).toLocaleString()} ₸</span>
+        </div>
+        <button 
+            onClick={() => addToCart(p)}
+            disabled={quantity <= 0}
+            className="p-4 bg-indigo-600 rounded-2xl hover:bg-indigo-500 disabled:opacity-20 disabled:grayscale transition-all shadow-lg shadow-indigo-600/20 active:scale-90"
+        >
+            <Plus className="w-5 h-5 text-white" />
+        </button>
+    </div>
+</div>
                                 </div>
                             );
                         })}
@@ -290,47 +364,107 @@ const markAllAsRead = async () => {
             </main>
 
             {isCartOpen && (
-                <div className="fixed inset-0 z-[100] flex justify-end">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
-                    <div className="relative w-full max-w-md bg-[#090d16] border-l border-gray-800 p-8 shadow-2xl flex flex-col">
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-2xl font-bold flex items-center gap-2"><ShoppingBasket className="text-indigo-400" /> Корзина</h2>
-                            <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-gray-800 rounded-lg"><X /></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                            {cart.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20 text-slate-600 gap-4">
-                                    <ShoppingBasket size={48} strokeWidth={1} />
-                                    <p>Ваша корзина пуста</p>
-                                </div>
-                            ) : (
-                                cart.map(item => (
-                                    <div key={item.id} className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex justify-between items-center">
-                                        <div>
-                                            <p className="font-bold text-sm">{item.name}</p>
-                                            <p className="text-indigo-400 font-bold">{item.price.toLocaleString()} ₸ <span className="text-slate-500 text-xs font-normal">x {item.count}</span></p>
-                                        </div>
-                                        <p className="text-xs font-bold text-white">{(item.price * item.count).toLocaleString()} ₸</p>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                        <div className="pt-6 border-t border-gray-800 mt-6">
-                            <div className="flex justify-between text-2xl font-black mb-6">
-                                <span>Итого:</span>
-                                <span className="text-indigo-400">{cartTotal.toLocaleString()} ₸</span>
-                            </div>
-                            <button 
-                                onClick={handleCheckout}
-                                disabled={cart.length === 0}
-                                className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-800 disabled:text-slate-500 py-4 rounded-2xl font-bold text-lg transition-all active:scale-95 shadow-xl shadow-indigo-600/20 text-white"
-                            >
-                                Оплатить заказ
-                            </button>
-                        </div>
+    <div className="fixed inset-0 z-[100] flex justify-end">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+        <div className="relative w-full max-w-md bg-[#090d16] border-l border-gray-800 p-8 shadow-2xl flex flex-col">
+            <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <ShoppingBasket className="text-indigo-400" /> Корзина
+                </h2>
+                <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-gray-800 rounded-lg"><X /></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                {cart.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-600 gap-4">
+                        <ShoppingBasket size={48} strokeWidth={1} />
+                        <p>Ваша корзина пуста</p>
                     </div>
+                ) : (
+                    cart.map(item => {
+                        // Находим товар в общем списке, чтобы узнать лимит (Quantity)
+                        const product = products.find(p => (p.ID || p.id) === item.id);
+                        const maxQty = product ? (product.Quantity ?? product.quantity) : 0;
+
+                        return (
+                            <div key={item.id} className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex justify-between items-center">
+                                <div>
+                                    <p className="font-bold text-sm">{item.name}</p>
+                                    <p className="text-indigo-400 font-bold">{item.price.toLocaleString()} ₸</p>
+                                </div>
+                                
+                                <div className="flex items-center gap-3 bg-black/40 rounded-lg p-1">
+                                    <button 
+                                        onClick={() => removeFromCart(item.id)}
+                                        className="p-1 hover:bg-gray-800 rounded text-slate-400 hover:text-white"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                    <span className="font-bold w-6 text-center">{item.count}</span>
+                                    <button 
+                                        onClick={() => addToCart(product)}
+                                        disabled={item.count >= maxQty}
+                                        className="p-1 hover:bg-gray-800 rounded text-slate-400 hover:text-white disabled:opacity-30"
+                                    >
+                                        <Plus size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+
+            <div className="pt-6 border-t border-gray-800 mt-6">
+                <div className="flex justify-between text-2xl font-black mb-6">
+                    <span>Итого:</span>
+                    <span className="text-indigo-400">{cartTotal.toLocaleString()} ₸</span>
                 </div>
-            )}
+                <button 
+                    onClick={handleCheckout}
+                    disabled={cart.length === 0}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-800 disabled:text-slate-500 py-4 rounded-2xl font-bold text-lg transition-all active:scale-95 shadow-xl shadow-indigo-600/20 text-white"
+                >
+                    Оплатить заказ
+                </button>
+            </div>
+        </div>
+    </div>
+)}
+{/* Toast уведомления */}
+<div className="fixed top-24 right-6 z-[9999] flex flex-col gap-3">
+    {toasts.map(toast => (
+        <div
+            key={toast.id}
+            className="min-w-[320px] max-w-[380px] bg-gray-900/95 border border-indigo-500/30 backdrop-blur-xl rounded-2xl px-4 py-4 shadow-2xl animate-[slideIn_.3s_ease]"
+        >
+            <div className="flex items-start gap-3">
+                
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center shrink-0">
+                    <Bell className="w-5 h-5 text-indigo-400" />
+                </div>
+
+                <div className="flex-1">
+                    <p className="text-sm font-semibold text-white">
+                        Новое уведомление
+                    </p>
+
+                    <p className="text-sm text-slate-300 mt-1 break-words">
+                        {toast.message}
+                    </p>
+                </div>
+
+                <button
+                    onClick={() => removeToast(toast.id)}
+                    className="text-slate-500 hover:text-white transition"
+                >
+                    <X size={16} />
+                </button>
+
+            </div>
+        </div>
+    ))}
+</div>
         </div>
     );
 };

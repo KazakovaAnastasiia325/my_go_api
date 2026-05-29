@@ -11,6 +11,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+    "context"
+	"my_api/storage" // импортируем ваш новый пакет
+    "github.com/minio/minio-go/v7"
+
 )
 
 func SellerDashboardHandler(w http.ResponseWriter, r *http.Request) {
@@ -154,4 +158,43 @@ func ProductByIDHandler(w http.ResponseWriter, r *http.Request) {
     default:
         http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
     }
+}
+func UploadHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Ограничиваем размер файла (например, до 10 МБ), чтобы сервер не упал
+	r.ParseMultipartForm(10 << 20) 
+
+	// Получаем файл из запроса (поле "image" должно соответствовать имени в FormData на фронтенде)
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "Ошибка получения файла: " + err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// 2. Отправляем в Rclone (наш S3)
+	// ВАЖНО: Убедитесь, что бакет "uploads" существует (либо создайте его вручную, 
+	// либо добавьте проверку существования в main.go)
+	bucketName := "uploads"
+	objectName := header.Filename
+	contentType := header.Header.Get("Content-Type")
+
+	_, err = storage.S3Client.PutObject(
+		context.Background(), 
+		bucketName, 
+		objectName, 
+		file, 
+		header.Size, 
+		minio.PutObjectOptions{
+			ContentType: contentType,
+		},
+	)
+
+	if err != nil {
+		http.Error(w, "Ошибка загрузки в S3: " + err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Отвечаем фронтенду
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Файл %s успешно загружен!", objectName)
 }

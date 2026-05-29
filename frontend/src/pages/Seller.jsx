@@ -269,11 +269,11 @@ const Seller = () => {
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-950/50 border-b border-gray-800">
               <tr>
-                <th className="p-4 text-[10px] font-bold text-slate-500 uppercase">Фото</th>
-                <th className="p-4 text-[10px] font-bold text-slate-500 uppercase">Наименование</th>
-                <th className="p-4 text-[10px] font-bold text-slate-500 uppercase">Цена</th>
-                <th className="p-4 text-[10px] font-bold text-slate-500 uppercase text-center">Склад</th>
-                <th className="p-4 text-[10px] font-bold text-slate-500 uppercase text-right">Действия</th>
+                <th className="w-20 p-4 text-[10px] font-bold text-slate-500 uppercase">Фото</th>
+        <th className="w-auto p-4 text-[10px] font-bold text-slate-500 uppercase">Наименование</th>
+        <th className="w-32 p-4 text-[10px] font-bold text-slate-500 uppercase">Цена</th>
+        <th className="w-24 p-4 text-[10px] font-bold text-slate-500 uppercase text-center">Склад</th>
+        <th className="w-32 p-4 text-[10px] font-bold text-slate-500 uppercase text-right">Действия</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/40">
