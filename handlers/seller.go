@@ -18,6 +18,7 @@ import (
 )
 
 func SellerDashboardHandler(w http.ResponseWriter, r *http.Request) {
+    
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -106,53 +107,80 @@ func ProductsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ProductByIDHandler(w http.ResponseWriter, r *http.Request) {
-    id, err := strconv.Atoi(r.PathValue("id"))
+
+    // 🔥 FIX: нормальный парсинг ID из URL
+    idStr := r.URL.Path[len("/api/products/"):]
+    id, err := strconv.Atoi(idStr)
     if err != nil {
         http.Error(w, "Некорректный ID", http.StatusBadRequest)
         return
     }
 
     switch r.Method {
+
     case http.MethodPut:
-        if err := r.ParseMultipartForm(10 << 20); err != nil {
-            http.Error(w, "Ошибка данных", http.StatusBadRequest)
+
+        err := r.ParseMultipartForm(10 << 20)
+        if err != nil {
+            http.Error(w, "Ошибка формы", http.StatusBadRequest)
             return
         }
 
         name := r.FormValue("name")
         description := r.FormValue("description")
-        price, _ := strconv.ParseFloat(r.FormValue("price"), 64)
-        quantity, _ := strconv.Atoi(r.FormValue("quantity"))
-        
-        
-        
+
+        price, err := strconv.ParseFloat(r.FormValue("price"), 64)
+        if err != nil {
+            http.Error(w, "Неверная цена", http.StatusBadRequest)
+            return
+        }
+
+        quantity, err := strconv.Atoi(r.FormValue("quantity"))
+        if err != nil {
+            http.Error(w, "Неверное количество", http.StatusBadRequest)
+            return
+        }
+
         var imagePath string
+
         file, handler, err := r.FormFile("image")
         if err == nil {
             defer file.Close()
+
             fileName := fmt.Sprintf("%d%s", time.Now().UnixNano(), filepath.Ext(handler.Filename))
             fullPath := filepath.Join("./uploads", fileName)
-            dst, _ := os.Create(fullPath)
+
+            dst, err := os.Create(fullPath)
+            if err != nil {
+                http.Error(w, "Ошибка сохранения файла", http.StatusInternalServerError)
+                return
+            }
+            defer dst.Close()
+
             io.Copy(dst, file)
-            dst.Close()
             imagePath = "/uploads/" + fileName
+
         } else {
-            imagePath = r.FormValue("old_image_url") 
+            imagePath = r.FormValue("old_image_url")
         }
 
-        
         err = repository.UpdateProduct(id, name, description, price, quantity, imagePath)
         if err != nil {
-            http.Error(w, "Ошибка обновления", http.StatusInternalServerError)
+            http.Error(w, "Ошибка обновления: "+err.Error(), http.StatusInternalServerError)
             return
         }
-        w.Write([]byte("Обновлено успешно"))
+
+        w.WriteHeader(http.StatusOK)
+        w.Write([]byte("Обновлено"))
 
     case http.MethodDelete:
-        if err := repository.DeleteProduct(id); err != nil {
+
+        err := repository.DeleteProduct(id)
+        if err != nil {
             http.Error(w, "Ошибка удаления", http.StatusInternalServerError)
             return
         }
+
         w.WriteHeader(http.StatusNoContent)
 
     default:
