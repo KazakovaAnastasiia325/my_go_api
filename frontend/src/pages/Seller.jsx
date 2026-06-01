@@ -16,6 +16,7 @@ const Seller = () => {
   });
   
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]); // Добавлено: стейт категорий
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -29,7 +30,8 @@ const Seller = () => {
     description: '',
     price: '',
     quantity: '',
-    seller_id: '' 
+    seller_id: '',
+    category_id: '' // Добавлено: поле для категории
   });
 
   const [selectedFile, setSelectedFile] = useState(null);
@@ -42,6 +44,20 @@ const Seller = () => {
     localStorage.removeItem('userId');
     window.location.href = '/auth';
   };
+
+  // Добавлено: Загрузка категорий из БД
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/categories');
+        const data = await response.json();
+        setCategories(data || []);
+      } catch (err) {
+        console.error("Ошибка загрузки категорий:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   // СИНХРОНИЗАЦИЯ: Следим за localStorage
   useEffect(() => {
@@ -73,6 +89,7 @@ const Seller = () => {
     } finally {
       setLoading(false);
     }
+    
   };
 
   useEffect(() => {
@@ -108,7 +125,7 @@ const Seller = () => {
     setEditingProduct(null);
     setFormData({ 
       name: '', description: '', price: '', quantity: '', 
-      seller_id: currentUserId 
+      seller_id: currentUserId, category_id: '' 
     });
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -124,7 +141,8 @@ const Seller = () => {
       description: product.description || '',
       price: String(product.price || ''),
       quantity: String(product.quantity || ''),
-      seller_id: String(product.seller_id) 
+      seller_id: String(product.seller_id),
+      category_id: String(product.category_id || '')
     });
     setPreviewUrl(product.image_url ? `http://localhost:8080${product.image_url}` : null);
     setSelectedFile(null);
@@ -156,6 +174,7 @@ const Seller = () => {
     fData.append('price', formData.price);
     fData.append('quantity', formData.quantity);
     fData.append('seller_id', formData.seller_id); 
+    fData.append('category_id', formData.category_id); // Отправка категории
     
     if (selectedFile) {
       fData.append('image', selectedFile);
@@ -349,6 +368,22 @@ const Seller = () => {
                   <textarea rows="2" required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 resize-none"/>
                 </div>
 
+                {/* Поле выбора категории */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Категория</label>
+                  <select 
+                    required
+                    value={formData.category_id} 
+                    onChange={e => setFormData({...formData, category_id: e.target.value})}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 outline-none focus:border-emerald-500"
+                  >
+                    <option value="">Выберите категорию</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Цена (₸)</label>
@@ -371,5 +406,4 @@ const Seller = () => {
     </div>
   );
 };
-
 export default Seller;

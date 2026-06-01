@@ -64,13 +64,14 @@ func GetAllUsers() ([]models.User, error) {
 
 // --- ПРОДУКТЫ ---
 
-func CreateProduct(name, description string, price float64, sellerID int, quantity int, imageURL string) error {
-	query := `INSERT INTO products (name, description, price, seller_id, quantity, image_url) VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err := database.DB.Exec(context.Background(), query, name, description, price, sellerID, quantity, imageURL)
-	if err != nil {
-		return fmt.Errorf("ошибка при создании продукта: %w", err)
-	}
-	return nil
+func CreateProduct(name, description string, price float64, sellerID int, quantity int, categoryID int, imageURL string) error {
+    query := `INSERT INTO products (name, description, price, seller_id, quantity, category_id, image_url) 
+              VALUES ($1, $2, $3, $4, $5, $6, $7)`
+    _, err := database.DB.Exec(context.Background(), query, name, description, price, sellerID, quantity, categoryID, imageURL)
+    if err != nil {
+        return fmt.Errorf("ошибка при создании продукта: %w", err)
+    }
+    return nil
 }
 
 func GetProductsBySeller(sellerID int) ([]models.Product, error) {
@@ -92,13 +93,13 @@ func GetProductsBySeller(sellerID int) ([]models.Product, error) {
 	return products, nil
 }
 
-func UpdateProduct(id int, name, description string, price float64, quantity int, imageURL string) error {
-	query := `
+func UpdateProduct(id int, name, description string, price float64, quantity int, categoryID int, imageURL string) error {
+    query := `
         UPDATE products 
-        SET name = $1, description = $2, price = $3, quantity = $4, image_url = $5 
-        WHERE id = $6`
-	_, err := database.DB.Exec(context.Background(), query, name, description, price, quantity, imageURL, id)
-	return err
+        SET name = $1, description = $2, price = $3, quantity = $4, category_id = $5, image_url = $6 
+        WHERE id = $7`
+    _, err := database.DB.Exec(context.Background(), query, name, description, price, quantity, categoryID, imageURL, id)
+    return err
 }
 
 func DeleteProduct(id int) error {
@@ -124,7 +125,85 @@ func GetAllProducts() ([]models.Product, error) {
 	}
 	return products, nil
 }
+func GetAllCategories() ([]models.Category, error) {
+    query := "SELECT id, name FROM categories ORDER BY name ASC"
+    rows, err := database.DB.Query(context.Background(), query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
 
+    var categories []models.Category
+    for rows.Next() {
+        var c models.Category
+        if err := rows.Scan(&c.ID, &c.Name); err != nil {
+            return nil, err
+        }
+        categories = append(categories, c)
+    }
+    return categories, nil
+}
+func GetCatalogProducts() ([]map[string]interface{}, error) {
+	query := `
+	SELECT
+		MIN(id) as id,
+		name,
+		description,
+		MIN(price) as price,
+		SUM(quantity) as quantity,
+		MAX(image_url) as image_url,
+		COUNT(*) as sellers_count
+	FROM products
+	GROUP BY name, description
+	ORDER BY name
+	`
+
+	rows, err := database.DB.Query(context.Background(), query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var products []map[string]interface{}
+
+	for rows.Next() {
+		var (
+			id           int
+			name         string
+			description  string
+			price        float64
+			quantity     int
+			imageURL     string
+			sellersCount int
+		)
+
+		err := rows.Scan(
+			&id,
+			&name,
+			&description,
+			&price,
+			&quantity,
+			&imageURL,
+			&sellersCount,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		products = append(products, map[string]interface{}{
+			"id":            id,
+			"name":          name,
+			"description":   description,
+			"price":         price,
+			"quantity":      quantity,
+			"image_url":     imageURL,
+			"sellers_count": sellersCount,
+		})
+	}
+
+	return products, nil
+}
 func ReduceProductQuantity(id int, count int) error {
 	// Проверка на количество (quantity >= $3) гарантирует, что мы не уйдем в минус
 	query := `UPDATE products SET quantity = quantity - $1 WHERE id = $2 AND quantity >= $3`

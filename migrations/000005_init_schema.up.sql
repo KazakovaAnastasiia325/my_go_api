@@ -15,3 +15,10 @@ CREATE TABLE notifications (
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+INSERT INTO categories (name) VALUES 
+('Клавиатуры'),
+('Мыши'),
+('Коврики для мыши'),
+('Наушники'),
+('Освещение'),
+('Мониторы');

@@ -48,7 +48,7 @@ func GetProductsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
 		return
 	}
-	products, err := repository.GetAllProducts()
+	products, err := repository.GetCatalogProducts()
 	if err != nil {
 		http.Error(w, "Ошибка при получении продуктов", http.StatusInternalServerError)
 		return

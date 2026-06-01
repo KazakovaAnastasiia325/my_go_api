@@ -37,29 +37,23 @@ func main() {
 	database.InitDB(connStr)
 	defer database.DB.Close()
 
-	// Инициализация S3 клиента
-	s3Client, err := minio.New("localhost:9000", &minio.Options{
-		Creds:  credentials.NewStaticV4("", "", ""),
-		Secure: false,
-	})
-	if err != nil {
-		log.Fatal("Ошибка подключения к S3:", err)
-	}
-
-	// ПРАВИЛЬНО: обращаемся к переменной через пакет storage
-	storage.S3Client = s3Client
-	ctx := context.Background()
-bucketName := "uploads"
-exists, _ := storage.S3Client.BucketExists(ctx, bucketName)
-if !exists {
-    err = storage.S3Client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
-    if err != nil {
-        log.Fatal("Не удалось создать бакет:", err)
+	// Инициализация S3 клиента с проверкой ошибок
+s3Client, err := minio.New("localhost:9000", &minio.Options{
+    Creds:  credentials.NewStaticV4("ВАШ_ACCESS_KEY", "ВАШ_SECRET_KEY", ""), // ЗАМЕНИТЕ НА ВАШИ КЛЮЧИ
+    Secure: false,
+})
+if err != nil {
+    log.Println("⚠️ Предупреждение: S3 недоступен:", err)
+} else {
+    storage.S3Client = s3Client
+    // Проверка бакета
+    ctx := context.Background()
+    exists, _ := storage.S3Client.BucketExists(ctx, "uploads")
+    if !exists {
+        _ = storage.S3Client.MakeBucket(ctx, "uploads", minio.MakeBucketOptions{})
     }
-    log.Println("Бакет 'uploads' успешно создан")
+    log.Println("✅ S3 клиент инициализирован и бакет готов")
 }
-	log.Println("S3 клиент инициализирован")
-
 	go hub.Run()
 	http.HandleFunc("/ws", hub.HandleConnections)
 	

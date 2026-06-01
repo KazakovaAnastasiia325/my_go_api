@@ -1,13 +1,17 @@
 package middleware
 
 import (
-	"my_api/handlers"
-	"net/http"
-	"strings"
-	"log"
 	"context"
+	"io"
+	"log"
+	"my_api/handlers"
+	"my_api/storage"
+	"net/http"
 	"os"
+	"strings"
+
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/minio/minio-go/v7"
 )
 func getSecret() []byte {
     secret := os.Getenv("JWT_SECRET")
@@ -50,23 +54,37 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
         }
     }
 }
+func S3FileHandler(w http.ResponseWriter, r *http.Request) {
+	// r.URL.Path выглядит как "/uploads/имя_файла.jpg"
+	// Нам нужно вытащить имя объекта из пути
+	objectName := strings.TrimPrefix(r.URL.Path, "/uploads/")
+	
+	// Получаем объект из MinIO
+	object, err := storage.S3Client.GetObject(context.Background(), "uploads", objectName, minio.GetObjectOptions{})
+	if err != nil {
+		http.Error(w, "Файл не найден", http.StatusNotFound)
+		return
+	}
+	defer object.Close()
 
+	// Устанавливаем правильные заголовки (можно добавить определение типа через mime/type)
+	w.Header().Set("Content-Type", "image/jpeg") 
+	
+	// Отправляем файл пользователю
+	io.Copy(w, object)
+}
 // 2. ИСПРАВЛЕННЫЙ SETUPROUTES
 func SetupRoutes() http.Handler {
 	mux := http.NewServeMux()
 
 	// ... остальной код (статика и т.д.) ...
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.FileServer(http.Dir("./uploads")).ServeHTTP(w, r)
-			return
-		}
-		http.Redirect(w, r, "/auth", http.StatusSeeOther)
-	})
-	// Регистрация папки uploads для доступа из браузера
-fs := http.FileServer(http.Dir("./uploads"))
-// StripPrefix убирает "/uploads/" из URL, чтобы Go искал файл просто в папке ./uploads/
-mux.Handle("/uploads/", http.StripPrefix("/uploads/", fs))
+	// Убираем сложную логику из корня "/"
+    mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        http.Redirect(w, r, "/auth", http.StatusSeeOther)
+    })
+    
+    // Просто регистрируем статику один раз
+    mux.HandleFunc("/uploads/", S3FileHandler)
 
 	mux.HandleFunc("/auth", handlers.AuthenticatePageHandler)
 
@@ -79,11 +97,13 @@ mux.Handle("/uploads/", http.StripPrefix("/uploads/", fs))
     mux.HandleFunc("/api/welcome", handlers.WelcomeHandler)
     mux.HandleFunc("/api/admin/create-user", handlers.CreateSellerHandler)
     mux.HandleFunc("/api/admin/users", handlers.GetUsersHandler)
+
     mux.HandleFunc("/api/products", handlers.ProductsHandler)
-    mux.HandleFunc("/api/catalog", handlers.GetProductsHandler)
+    mux.HandleFunc("/api/catalog", handlers.ProductsHandler)
     mux.HandleFunc("/api/products/", handlers.ProductByIDHandler)
 	mux.HandleFunc("/api/notifications", AuthMiddleware(handlers.GetNotificationsHandler))
 	mux.HandleFunc("/api/notifications/read", AuthMiddleware(handlers.MarkAllReadHandler))
+    mux.HandleFunc("/api/categories", handlers.GetCategoriesHandler)
 	
 
 	return EnableCORS(mux)

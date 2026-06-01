@@ -65,7 +65,15 @@ const Catalog = () => {
                                 <div className="flex justify-between items-center mt-6">
                                     <span className="text-2xl font-black text-white">{p.Price} <span className="text-sm text-indigo-400">₸</span></span>
                                     <button 
-                                        onClick={() => addToCart(p)}
+                                        onClick={() => addToCart({
+    id: item.id,
+    name: item.name,
+    price: item.price,
+    sellerId: item.sellerId
+}, {
+    sellerId: item.sellerId,
+    price: item.price
+})}
                                         className="bg-indigo-600 p-3 rounded-xl hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
                                     >
                                         <Plus className="w-6 h-6 text-white" />

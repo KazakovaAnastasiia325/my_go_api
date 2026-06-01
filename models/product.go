@@ -7,4 +7,5 @@ type Product struct {
 	SellerID    int     `json:"seller_id"`
 	Quantity    int     `json:"quantity"`
 	ImageURL    string  `json:"image_url"`
+	CategoryID  int     `json:"category_id"`
 }

@@ -9,6 +9,18 @@ const MOCK_PRODUCTS = [
     { ID: 2, Name: "Беспроводная мышь AirGlide", Description: "Демо-данные: Легкая мышь 16000 DPI.", Price: 18500, Quantity: 4, image_url: "" },
 ];
 
+// =====================
+// НОРМАЛИЗАЦИЯ
+// =====================
+const normalizeProduct = (p) => ({
+    id: p.ID ?? p.id,
+    name: p.Name ?? p.name,
+    description: p.Description ?? p.description,
+    price: p.Price ?? p.price ?? 0,
+    quantity: p.Quantity ?? p.quantity ?? 0,
+    image_url: p.image_url ?? p.ImageURL ?? ""
+});
+
 const Customer = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -16,12 +28,14 @@ const Customer = () => {
     const [maxPrice, setMaxPrice] = useState(1000000);
     const [onlyInStock, setOnlyInStock] = useState(false);
     const [toasts, setToasts] = useState([]);
-    
+const [sellerModalProduct, setSellerModalProduct] = useState(null);
+const [selectedSeller, setSelectedSeller] = useState({});
+const [openSellers, setOpenSellers] = useState({});
     const [cart, setCart] = useState(() => {
         try {
             const saved = localStorage.getItem('cart');
             return saved ? JSON.parse(saved) : [];
-        } catch (e) {
+        } catch {
             return [];
         }
     });
@@ -30,7 +44,7 @@ const Customer = () => {
     const [notifications, setNotifications] = useState([]);
     const [shownNotifications, setShownNotifications] = useState([]);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
-    
+
     useEffect(() => {
         localStorage.setItem('cart', JSON.stringify(cart));
     }, [cart]);
@@ -41,13 +55,15 @@ const Customer = () => {
         window.location.href = '/auth';
     };
 
-    const showToast = (message) => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, message }]);
-        setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== id));
-        }, 5000);
-    };
+   const showToast = (message) => {
+    const id = crypto.randomUUID(); // 🔥 вместо Date.now()
+
+    setToasts(prev => [...prev, { id, message }]);
+
+    setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    }, 5000);
+};
 
     const removeToast = (id) => {
         setToasts(prev => prev.filter(t => t.id !== id));
@@ -56,159 +72,190 @@ const Customer = () => {
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:8080/api/catalog');
-            if (!response.ok) throw new Error('Бэкенд недоступен');
-            const data = await response.json();
-            setProducts(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.warn("Используем демо-данные");
-            setProducts(MOCK_PRODUCTS);
+            const res = await fetch('http://localhost:8080/api/catalog');
+            if (!res.ok) throw new Error();
+
+            const data = await res.json();
+const normalized = Array.isArray(data) ? data.map(normalizeProduct) : [];
+
+const grouped = groupProducts(normalized);
+
+setProducts(grouped);
+        } catch {
+            setProducts(MOCK_PRODUCTS.map(normalizeProduct));
         } finally {
             setLoading(false);
         }
     };
+const groupProducts = (data) => {
+        const map = new Map();
 
-    const fetchNotifications = async () => {
-    const token = localStorage.getItem('token');
+        data.forEach(p => {
+            const key = (p.name ?? p.Name).toLowerCase().trim();
 
-    if (!token) return;
-
-    try {
-        const res = await fetch('http://localhost:8080/api/notifications', {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            if (!map.has(key)) {
+                map.set(key, {
+                    ...p,
+                    sellers: [{
+                        price: p.price,
+                        quantity: p.quantity,
+                        sellerId: Math.random().toString(36).slice(2, 8)
+                    }]
+                });
+            } else {
+                const existing = map.get(key);
+                existing.sellers.push({
+                    price: p.price,
+                    quantity: p.quantity,
+                    sellerId: Math.random().toString(36).slice(2, 8)
+                });
             }
         });
 
-        if (res.ok) {
-            const data = await res.json();
+        return Array.from(map.values());
+    };
+    const fetchNotifications = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
 
-            const unreadNotifications = data.filter(n => !n.is_read);
-
-            unreadNotifications.forEach(notification => {
-
-                if (!shownNotifications.includes(notification.id)) {
-
-                    showToast(notification.message);
-
-                    setShownNotifications(prev => [
-                        ...prev,
-                        notification.id
-                    ]);
-                }
+        try {
+            const res = await fetch('http://localhost:8080/api/notifications', {
+                headers: { Authorization: `Bearer ${token}` }
             });
 
-            setNotifications(data || []);
-        }
+            if (res.ok) {
+                const data = await res.json();
 
-    } catch (err) {
-        console.error("Ошибка получения уведомлений", err);
-    }
-};
+                const unread = data.filter(n => !n.is_read);
+
+                unread.forEach(n => {
+                    if (!shownNotifications.includes(n.id)) {
+                        showToast(n.message);
+                        setShownNotifications(prev => [...prev, n.id]);
+                    }
+                });
+
+                setNotifications(data);
+            }
+        } catch {}
+    };
 
     useEffect(() => {
         fetchProducts();
         fetchNotifications();
-        const interval = setInterval(fetchNotifications, 30000);
-        return () => clearInterval(interval);
+        const t = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(t);
     }, []);
 
     const markAllAsRead = async () => {
         const token = localStorage.getItem('token');
-        try {
-            const response = await fetch('http://localhost:8080/api/notifications/read', {
-                method: 'POST', 
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            if (response.ok) {
-                setNotifications(prev => prev.map(n => ({...n, is_read: true})));
+        await fetch('http://localhost:8080/api/notifications/read', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
-        } catch (err) {
-            console.error("Ошибка при обновлении статусов:", err);
-        }
+        });
+
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+        setShownNotifications([]);
     };
 
     const highestProductPrice = useMemo(() => {
         if (!products.length) return 1000000;
-        return Math.max(...products.map(p => p.Price || p.price || 0));
+        return Math.max(...products.map(p => p.price));
     }, [products]);
 
     const filteredProducts = useMemo(() => {
         return products.filter(p => {
-            const name = (p.Name || p.name || '').toLowerCase();
-            const description = (p.Description || p.description || '').toLowerCase();
-            const query = searchTerm.toLowerCase();
-            const matchesSearch = name.includes(query) || description.includes(query);
-            const price = p.Price || p.price || 0;
-            const qty = p.Quantity !== undefined ? p.Quantity : p.quantity;
-            return matchesSearch && price <= maxPrice && (!onlyInStock || qty > 0);
+            const q = searchTerm.toLowerCase();
+
+            return (
+                (p.name || '').toLowerCase().includes(q) ||
+                (p.description || '').toLowerCase().includes(q)
+            ) && p.price <= maxPrice &&
+              (!onlyInStock || p.quantity > 0);
         });
     }, [products, searchTerm, maxPrice, onlyInStock]);
+const handleAddClick = (product) => {
+    const seller = selectedSeller[product.id];
 
-    const addToCart = (product) => {
-        showToast("Товар добавлен в корзину");
-        setCart(prev => {
-            const id = product.ID || product.id;
-            const existing = prev.find(item => item.id === id);
-            const qty = product.Quantity !== undefined ? product.Quantity : product.quantity;
-            
-            if (existing) {
-                if (existing.count < qty) {
-                    return prev.map(item => item.id === id ? {...item, count: item.count + 1} : item);
-                }
-                return prev;
+    if (!seller) {
+        setSellerModalProduct(product);
+        return;
+    }
+
+    addToCart(product, seller);
+};
+    const addToCart = (product, seller) => {
+    if (!product || !seller) return;
+
+    const key = `${product.id}_${seller.sellerId}`;
+
+    setCart(prev => {
+        const existing = prev.find(i => i.key === key);
+
+        if (existing) {
+            return prev.map(i =>
+                i.key === key
+                    ? { ...i, count: i.count + 1 }
+                    : i
+            );
+        }
+
+        return [
+            ...prev,
+            {
+                key,
+                id: product.id,
+                name: product.name,
+                price: seller.price,     
+                sellerId: seller.sellerId,
+                count: 1
             }
-            return [...prev, { 
-                id, 
-                name: product.Name || product.name, 
-                price: product.Price || product.price, 
-                count: 1 
-            }];
-        });
-    };
+        ];
+    });
 
-    const removeFromCart = (id) => {
-        setCart(prev => prev.map(item => {
-            if (item.id === id) {
-                return { ...item, count: item.count - 1 };
-            }
-            return item;
-        }).filter(item => item.count > 0));
-    };
+    showToast("Товар добавлен в корзину");
+};
 
-    const cartCount = cart.reduce((sum, item) => sum + item.count, 0);
-    const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.count), 0);
-    
+   const removeFromCart = (key) => {
+    setCart(prev =>
+        prev
+            .map(i => i.key === key ? { ...i, count: i.count - 1 } : i)
+            .filter(i => i.count > 0)
+    );
+};
+
+    const cartCount = cart.reduce((s, i) => s + i.count, 0);
+    const cartTotal = cart.reduce((s, i) => s + i.price * i.count, 0);
+
     const handleCheckout = async () => {
-        const token = localStorage.getItem('token'); 
-        if (!token) {
-            showToast("Вы не авторизованы!");
-            return;
-        }
-        try {
-            const response = await fetch('http://localhost:8080/api/checkout', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify(cart)
-            });
-            if (response.ok) {
-                showToast("Заказ успешно оформлен!");
-                setCart([]);
-                setIsCartOpen(false);
-                fetchNotifications();
-            } else {
-                showToast("Ошибка при оформлении");
-            }
-        } catch (err) {
-            showToast("Ошибка сети");
+        const token = localStorage.getItem('token');
+        if (!token) return showToast("Вы не авторизованы");
+
+        const res = await fetch('http://localhost:8080/api/checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify(cart)
+        });
+
+        if (res.ok) {
+    showToast("Заказ оформлен");
+
+    setCart([]);
+    localStorage.removeItem('cart'); 
+
+    setIsCartOpen(false);
+    fetchNotifications();
+} else {
+            showToast("Ошибка оформления");
         }
     };
+
 
     return (
         <div className="max-h-screen bg-[#090d16] text-slate-100 font-['Plus_Jakarta_Sans']">
@@ -341,19 +388,72 @@ const Customer = () => {
             </span>
         )}
     </div>
+    
 
     <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-800/50">
         <div>
             <p className="text-[10px] text-slate-500 uppercase font-bold">Цена</p>
-            <span className="text-xl font-black text-white">{(p.Price || p.price).toLocaleString()} ₸</span>
+            <span className="text-xl font-black text-white">
+    от {Math.min(...(p.sellers?.map(s => s.price) || [p.price]))} ₸
+</span>
+<button
+    onClick={() =>
+        setOpenSellers(prev => ({
+            ...prev,
+            [p.id]: !prev[p.id]
+        }))
+    }
+    className="text-xs text-indigo-400 hover:text-indigo-300 mb-2"
+>
+    Продавцы ({p.sellers.length})
+</button>
+{openSellers[p.id] && (
+    <div className="mb-3 space-y-2">
+        
+        {p.sellers.map((s, index) => {
+            const isSelected = selectedSeller[p.id]?.sellerId === s.sellerId;
+
+            return (
+                <div
+                    key={index}
+                    className={`p-2 rounded-lg border flex justify-between items-center cursor-pointer ${
+                        isSelected
+                            ? "border-indigo-500 bg-indigo-500/10"
+                            : "border-gray-700"
+                    }`}
+                    onClick={() =>
+                        setSelectedSeller(prev => ({
+                            ...prev,
+                            [p.id]: { ...s, sellerId: s.sellerId }
+                        }))
+                    }
+                >
+                    <div>
+                        <p className="text-xs text-slate-300">
+                            Продавец #{s.sellerId}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                            Остаток: {s.quantity}
+                        </p>
+                    </div>
+
+                    <div className="font-bold text-indigo-400">
+                        {s.price.toLocaleString()} ₸
+                    </div>
+                </div>
+            );
+        })}
+    </div>
+)}
+
         </div>
         <button 
-            onClick={() => addToCart(p)}
-            disabled={quantity <= 0}
-            className="p-4 bg-indigo-600 rounded-2xl hover:bg-indigo-500 disabled:opacity-20 disabled:grayscale transition-all shadow-lg shadow-indigo-600/20 active:scale-90"
-        >
-            <Plus className="w-5 h-5 text-white" />
-        </button>
+    onClick={() => handleAddClick(p)}
+    disabled={quantity <= 0}
+    className="p-4 bg-indigo-600 rounded-2xl hover:bg-indigo-500 disabled:opacity-20 disabled:grayscale transition-all shadow-lg shadow-indigo-600/20 active:scale-90"
+>
+    <Plus className="w-5 h-5 text-white" />
+</button>
     </div>
 </div>
                                 </div>
@@ -387,7 +487,7 @@ const Customer = () => {
                         const maxQty = product ? (product.Quantity ?? product.quantity) : 0;
 
                         return (
-                            <div key={item.id} className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex justify-between items-center">
+                            <div key={item.key} className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex justify-between items-center">
                                 <div>
                                     <p className="font-bold text-sm">{item.name}</p>
                                     <p className="text-indigo-400 font-bold">{item.price.toLocaleString()} ₸</p>
@@ -395,14 +495,28 @@ const Customer = () => {
                                 
                                 <div className="flex items-center gap-3 bg-black/40 rounded-lg p-1">
                                     <button 
-                                        onClick={() => removeFromCart(item.id)}
+                                        onClick={() => removeFromCart(item.key)}
                                         className="p-1 hover:bg-gray-800 rounded text-slate-400 hover:text-white"
                                     >
                                         <X size={14} />
                                     </button>
                                     <span className="font-bold w-6 text-center">{item.count}</span>
                                     <button 
-                                        onClick={() => addToCart(product)}
+                                        onClick={() => {
+    const product = products.find(
+        p => (p.ID || p.id) === item.id
+    );
+
+    if (!product) return;
+
+    const seller = product.sellers?.find(
+        s => s.sellerId === item.sellerId
+    );
+
+    if (!seller) return;
+
+    addToCart(product, seller);
+}}
                                         disabled={item.count >= maxQty}
                                         className="p-1 hover:bg-gray-800 rounded text-slate-400 hover:text-white disabled:opacity-30"
                                     >
@@ -427,6 +541,93 @@ const Customer = () => {
                 >
                     Оплатить заказ
                 </button>
+            </div>
+        </div>
+    </div>
+)}
+{sellerModalProduct && (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
+        
+        {/* overlay */}
+        <div 
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setSellerModalProduct(null)}
+        />
+
+        {/* modal */}
+        <div className="relative w-[420px] bg-[#0f1422] border border-gray-800 rounded-2xl p-6 shadow-2xl">
+            
+            <h3 className="text-lg font-bold mb-4">
+                Выбор продавца
+            </h3>
+
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {sellerModalProduct.sellers.map((s, index) => {
+                    const isSelected =
+                        selectedSeller[sellerModalProduct.id]?.sellerId === s.sellerId;
+
+                    return (
+                        <div
+                            key={index}
+                            onClick={() =>
+                                setSelectedSeller(prev => ({
+                                    ...prev,
+                                    [sellerModalProduct.id]: s
+                                }))
+                            }
+                            className={`p-3 rounded-xl border cursor-pointer transition ${
+                                isSelected
+                                    ? "border-indigo-500 bg-indigo-500/10"
+                                    : "border-gray-700 hover:border-gray-500"
+                            }`}
+                        >
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-sm font-semibold">
+                                        Продавец #{s.sellerId}
+                                    </p>
+                                    <p className="text-xs text-slate-400">
+                                        Остаток: {s.quantity}
+                                    </p>
+                                </div>
+
+                                <div className="text-indigo-400 font-bold">
+                                    {s.price.toLocaleString()} ₸
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* buttons */}
+            <div className="flex gap-3 mt-5">
+                
+                <button
+                    onClick={() => setSellerModalProduct(null)}
+                    className="flex-1 py-2 rounded-xl bg-gray-800 hover:bg-gray-700"
+                >
+                    Отмена
+                </button>
+
+                <button
+    onClick={() => {
+        const sel = selectedSeller[sellerModalProduct.id];
+
+        if (!sel) return;
+
+        addToCart(
+            sellerModalProduct,
+            sel
+        );
+
+        setSellerModalProduct(null);
+    }}
+    className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500"
+>
+    Добавить
+</button>
+
             </div>
         </div>
     </div>
