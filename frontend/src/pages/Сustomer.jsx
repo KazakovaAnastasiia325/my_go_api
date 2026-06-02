@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    ShoppingCart, Search, SlidersHorizontal, Plus, X, 
+    ChevronDown, ShoppingCart, Search, SlidersHorizontal, Plus, X, 
     ShoppingBasket, Image as ImageIcon, LogOut, Bell 
 } from 'lucide-react';
 
@@ -187,37 +187,60 @@ const handleAddClick = (product) => {
 
     addToCart(product, seller);
 };
-    const addToCart = (product, seller) => {
+    // 1. Создаем состояние для отслеживания результата попытки добавления
+const [addToCartResult, setAddToCartResult] = useState(null);
+
+// 2. Основная функция (чистая, без тостов)
+const addToCart = (product, seller) => {
     if (!product || !seller) return;
 
+    // Ищем актуальный лимит из свежих данных products (загруженных с сервера)
+    const actualProduct = products.find(p => p.id === product.id);
+    const actualSeller = actualProduct?.sellers?.find(s => s.sellerId === seller.sellerId);
+    
+    // Если по какой-то причине продавца нет в актуальном списке, берем его данные
+    const limit = actualSeller ? Number(actualSeller.quantity) : Number(seller.quantity);
+    
     const key = `${product.id}_${seller.sellerId}`;
 
     setCart(prev => {
         const existing = prev.find(i => i.key === key);
+        const currentCount = existing ? existing.count : 0;
 
-        if (existing) {
-            return prev.map(i =>
-                i.key === key
-                    ? { ...i, count: i.count + 1 }
-                    : i
-            );
+        // Если в корзине уже >= лимита, ничего не добавляем и говорим "лимит"
+        if (currentCount >= limit) {
+            setAddToCartResult('limit');
+            return prev;
         }
 
-        return [
-            ...prev,
-            {
-                key,
-                id: product.id,
-                name: product.name,
-                price: seller.price,     
-                sellerId: seller.sellerId,
-                count: 1
-            }
-        ];
-    });
+        // Если все ок - добавляем или увеличиваем
+        setAddToCartResult('success');
+        
+        if (existing) {
+            return prev.map(i => i.key === key ? { ...i, count: i.count + 1 } : i);
+        }
 
-    showToast("Товар добавлен в корзину");
+        return [...prev, { 
+            key, 
+            id: product.id, 
+            name: product.name, 
+            price: Number(seller.price), 
+            sellerId: seller.sellerId, 
+            count: 1 
+        }];
+    });
 };
+
+// 3. Эффект, который реагирует на изменение статуса и показывает тост ОДИН РАЗ
+useEffect(() => {
+    if (addToCartResult === 'success') {
+        showToast("Товар добавлен в корзину");
+    } else if (addToCartResult === 'limit') {
+        showToast("Товар закончился (достигнут лимит)");
+    }
+    // Сбрасываем статус, чтобы можно было показать уведомление снова при следующем клике
+    setAddToCartResult(null);
+}, [addToCartResult]);
 
    const removeFromCart = (key) => {
     setCart(prev =>
@@ -403,9 +426,19 @@ const handleAddClick = (product) => {
             [p.id]: !prev[p.id]
         }))
     }
-    className="text-xs text-indigo-400 hover:text-indigo-300 mb-2"
+    className={`
+        flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200
+        ${openSellers[p.id] 
+            ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/50' 
+            : 'bg-gray-800/50 text-slate-400 hover:bg-gray-800 hover:text-indigo-400'}
+    `}
 >
-    Продавцы ({p.sellers.length})
+    {/* Иконка, которая будет вращаться при клике */}
+    <ChevronDown 
+        size={14} 
+        className={`transition-transform duration-300 ${openSellers[p.id] ? 'rotate-180' : 'rotate-0'}`} 
+    />
+    <span>Продавцы ({p.sellers?.length || 0})</span>
 </button>
 {openSellers[p.id] && (
     <div className="mb-3 space-y-2">
@@ -448,12 +481,14 @@ const handleAddClick = (product) => {
 
         </div>
         <button 
+        
     onClick={() => handleAddClick(p)}
     disabled={quantity <= 0}
     className="p-4 bg-indigo-600 rounded-2xl hover:bg-indigo-500 disabled:opacity-20 disabled:grayscale transition-all shadow-lg shadow-indigo-600/20 active:scale-90"
 >
     <Plus className="w-5 h-5 text-white" />
 </button>
+
     </div>
 </div>
                                 </div>
