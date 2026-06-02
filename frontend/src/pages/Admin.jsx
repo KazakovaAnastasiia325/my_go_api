@@ -1,47 +1,44 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, ShieldAlert, Store, ShoppingBag, 
-  Search, UserPlus, Trash2, X, LogOut 
+  Search, UserPlus, Trash2, LogOut 
 } from 'lucide-react';
 
-const MOCK_USERS = [
-  { id: 1, username: "alex_director", email: "alex@admin.corp", role: "admin" },
-  { id: 2, username: "maria_sales", email: "m.seller@shop.ru", role: "seller" },
-  { id: 3, username: "dmitry_green", email: "dima@customer.io", role: "customer" },
-];
-
 const Admin = () => {
+  // --- СОСТОЯНИЯ ---
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-
-  // Состояния для модалки
+  const [currentPage, setCurrentPage] = useState(1);
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'customer' });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const USERS_PER_PAGE = 10;
+
+  // --- ЛОГИКА ---
   const fetchUsers = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8080/api/admin/users', {
-          headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
-      if (!response.ok) throw new Error('Ошибка сервера при получении пользователей');
+      if (!response.ok) throw new Error('Ошибка сервера');
       const data = await response.json();
       setUsers(data || []);
     } catch (err) {
-      console.error("Backend fetch failed, using mocks", err);
-      setUsers(MOCK_USERS);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, roleFilter]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -56,7 +53,6 @@ const Admin = () => {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       if (!response.ok) throw new Error('Ошибка при удалении');
       await fetchUsers();
     } catch (err) { alert('Ошибка при удалении: ' + err.message); }
@@ -66,7 +62,6 @@ const Admin = () => {
     e.preventDefault();
     setFormError('');
     setIsSubmitting(true);
-
     const roleMapping = { 'admin': 1, 'customer': 2, 'seller': 4 };
     const payload = {
       username: formData.username,
@@ -74,26 +69,21 @@ const Admin = () => {
       password: formData.password,
       role_id: roleMapping[formData.role] || 2
     };
-
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8080/api/admin/create-user', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${token}` 
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
-
-      if (!response.ok) throw new Error(await response.text() || 'Не удалось создать пользователя');
-
+      if (!response.ok) throw new Error(await response.text() || 'Ошибка');
       await fetchUsers();
       setIsModalOpen(false);
       setFormData({ username: '', email: '', password: '', role: 'customer' });
     } catch (err) { setFormError(err.message); } finally { setIsSubmitting(false); }
   };
 
+  // --- ВЫЧИСЛЕНИЯ ---
   const stats = useMemo(() => ({
     total: users.length,
     admins: users.filter(u => (u.role || u.Role || '').toLowerCase() === 'admin').length,
@@ -108,6 +98,13 @@ const Admin = () => {
       return uName.includes(searchTerm.toLowerCase()) && (roleFilter === 'all' || uRole === roleFilter);
     });
   }, [users, searchTerm, roleFilter]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * USERS_PER_PAGE;
+    return filteredUsers.slice(start, start + USERS_PER_PAGE);
+  }, [filteredUsers, currentPage]);
+
+  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
 
   const getRoleBadgeClass = (role) => {
     const r = (role || '').toLowerCase();
@@ -181,7 +178,7 @@ const Admin = () => {
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
-                {filteredUsers.map(user => (
+                {paginatedUsers.map(user => (
                 <tr key={user.id || user.ID} className="hover:bg-indigo-500/5 transition-colors group">
                     <td className="p-4 text-slate-500 font-mono text-sm">#{user.id || user.ID}</td>
                     <td className="p-4 font-medium text-slate-200">{user.username || user.Username}</td>
@@ -201,7 +198,17 @@ const Admin = () => {
             </tbody>
         </table>
       </div>
+{/* Пагинация */}
 
+      <div className="mt-6 flex justify-center gap-4">
+
+        <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-4 py-2 bg-gray-800 text-white rounded">Назад</button>
+
+        <span className="text-white py-2">Стр. {currentPage} из {totalPages}</span>
+
+        <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-4 py-2 bg-gray-800 text-white rounded">Вперед</button>
+
+      </div>
       {/* Модалка */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
