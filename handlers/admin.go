@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"log"
+	
 	"my_api/models"
 	"my_api/repository"
 	"my_api/service"
@@ -42,19 +43,42 @@ func CreateSellerHandler(w http.ResponseWriter, r *http.Request) {
 
 // получение списка всех пользователей
 func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
-	users, err := repository.GetAllUsers()
-	if err != nil {
-		log.Println("Ошибка получения списка пользователей:", err)
-		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
-		return
-	}
+    lastIdStr := r.URL.Query().Get("lastId") // Берем параметр lastId
+    lastId, _ := strconv.Atoi(lastIdStr) // Если пусто или ошибка, будет 0 
 
-	w.Header().Set("Content-Type", "application/json")
-	if users == nil {
-		users = []models.User{}
-	}
-	json.NewEncoder(w).Encode(users)
+    users, err := repository.GetUsersPaginated(lastId, 10)
+    if err != nil {
+        http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
+        return
+    }
+
+    total, _ := repository.GetTotalUsers()
+
+    response := map[string]interface{}{
+        "users": users,
+        "total": total,
+    }
+	
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+	
 }
+func GetStatsHandler(w http.ResponseWriter, r *http.Request) {
+    adminCount, _ := repository.GetUserCountByRole("admin")
+    sellerCount, _ := repository.GetUserCountByRole("seller")
+    customerCount, _ := repository.GetUserCountByRole("customer")
+
+    stats := map[string]int{
+        "admin":    adminCount,
+        "seller":   sellerCount,
+        "customer": customerCount,
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(stats)
+}
+
+
 
 // удаление пользователя по ID
 func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	
 	"my_api/database"
 	"my_api/models"
 )
@@ -142,6 +143,40 @@ func GetAllCategories() ([]models.Category, error) {
         categories = append(categories, c)
     }
     return categories, nil
+}
+// Добавьте это в repository/repository.go
+func GetStats() (map[string]int, error) {
+    stats := map[string]int{"admin": 0, "seller": 0, "customer": 0}
+    
+    // Считаем всех сразу одним запросом
+    query := `
+        SELECT r.name, COUNT(u.id) 
+        FROM users u 
+        JOIN roles r ON u.role_id = r.id 
+        GROUP BY r.name`
+        
+    rows, err := database.DB.Query(context.Background(), query)
+    if err != nil { return stats, err }
+    defer rows.Close()
+
+    for rows.Next() {
+        var name string
+        var count int
+        if err := rows.Scan(&name, &count); err == nil {
+            stats[name] = count
+        }
+    }
+    return stats, nil
+}
+func GetUserCountByRole(roleName string) (int, error) {
+    var count int
+    query := `
+        SELECT COUNT(u.id) 
+        FROM users u 
+        JOIN roles r ON u.role_id = r.id 
+        WHERE r.name = $1`
+    err := database.DB.QueryRow(context.Background(), query, roleName).Scan(&count)
+    return count, err
 }
 func GetCatalogProducts() ([]map[string]interface{}, error) {
 	query := `
@@ -288,3 +323,38 @@ func MarkNotificationsAsRead(userID int) error {
     _, err := database.DB.Exec(context.Background(), query, userID)
     return err
 }
+// GetUsersPaginated меняем логику с offset на id
+func GetUsersPaginated(lastID int, limit int) ([]models.User, error) {
+    // Если lastID == 0, значит мы берем первую страницу
+    query := `
+        SELECT u.id, u.username, u.email, r.name 
+        FROM users u 
+        JOIN roles r ON u.role_id = r.id 
+        WHERE u.id > $1 
+        ORDER BY u.id ASC 
+        LIMIT $2`
+    
+    rows, err := database.DB.Query(context.Background(), query, lastID, limit)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var users []models.User
+    for rows.Next() {
+        var u models.User
+        if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.RoleName); err != nil {
+            return nil, err
+        }
+        users = append(users, u)
+    }
+    return users, nil
+}
+
+// Добавьте функцию для получения общего количества (нужно для фронтенда)
+func GetTotalUsers() (int, error) {
+    var count int
+    err := database.DB.QueryRow(context.Background(), "SELECT COUNT(*) FROM users").Scan(&count)
+    return count, err
+}
+

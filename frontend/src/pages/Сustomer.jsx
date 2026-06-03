@@ -16,8 +16,8 @@ const normalizeProduct = (p) => ({
     id: p.ID ?? p.id,
     name: p.Name ?? p.name,
     description: p.Description ?? p.description,
-    price: p.Price ?? p.price ?? 0,
-    quantity: p.Quantity ?? p.quantity ?? 0,
+    price: Number(p.Price ?? p.price ?? 0),
+    quantity: Number(p.Quantity ?? p.quantity ?? 0),
     image_url: p.image_url ?? p.ImageURL ?? ""
 });
 
@@ -56,7 +56,7 @@ const [openSellers, setOpenSellers] = useState({});
     };
 
    const showToast = (message) => {
-    const id = crypto.randomUUID(); // 🔥 вместо Date.now()
+    const id = crypto.randomUUID(); // 
 
     setToasts(prev => [...prev, { id, message }]);
 
@@ -88,32 +88,41 @@ setProducts(grouped);
         }
     };
 const groupProducts = (data) => {
-        const map = new Map();
+    const map = new Map();
 
-        data.forEach(p => {
-            const key = (p.name ?? p.Name).toLowerCase().trim();
+    (data || []).forEach(p => {
+        const key = (p.name || "").toLowerCase().trim();
 
-            if (!map.has(key)) {
-                map.set(key, {
-                    ...p,
-                    sellers: [{
+        if (!map.has(key)) {
+            map.set(key, {
+                ...p,
+                sellers: [
+                    {
                         price: p.price,
                         quantity: p.quantity,
                         sellerId: Math.random().toString(36).slice(2, 8)
-                    }]
-                });
-            } else {
-                const existing = map.get(key);
-                existing.sellers.push({
-                    price: p.price,
-                    quantity: p.quantity,
-                    sellerId: Math.random().toString(36).slice(2, 8)
-                });
-            }
-        });
+                    }
+                ]
+            });
+        } else {
+            const existing = map.get(key);
 
-        return Array.from(map.values());
-    };
+            map.set(key, {
+                ...existing,
+                sellers: [
+                    ...existing.sellers,
+                    {
+                        price: p.price,
+                        quantity: p.quantity,
+                        sellerId: Math.random().toString(36).slice(2, 8)
+                    }
+                ]
+            });
+        }
+    });
+
+    return Array.from(map.values());
+};
     const fetchNotifications = async () => {
         const token = localStorage.getItem('token');
         if (!token) return;
