@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	
+	"log"
+
 	"my_api/models"
 	"my_api/repository"
 	"my_api/service"
@@ -13,7 +14,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-//создание пользователя
+// создание пользователя
 func CreateSellerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
@@ -43,42 +44,60 @@ func CreateSellerHandler(w http.ResponseWriter, r *http.Request) {
 
 // получение списка всех пользователей
 func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
-    lastIdStr := r.URL.Query().Get("lastId") // Берем параметр lastId
-    lastId, _ := strconv.Atoi(lastIdStr) // Если пусто или ошибка, будет 0 
 
-    users, err := repository.GetUsersPaginated(lastId, 10)
-    if err != nil {
-        http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
-        return
-    }
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page <= 0 {
+		page = 1
+	}
 
-    total, _ := repository.GetTotalUsers()
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 {
+		limit = 10
+	}
 
-    response := map[string]interface{}{
-        "users": users,
-        "total": total,
-    }
+	search := r.URL.Query().Get("search")
+	role := r.URL.Query().Get("role")
+
+	log.Println("PAGE =", page)
+	log.Println("SEARCH =", search)
+	log.Println("ROLE =", role)
 	
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
-	
+	users, total, err := repository.GetUsersPaginated(
+		page,
+		limit,
+		search,
+		role,
+	)
+
+	if err != nil {
+		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
+		return
+	}
+
+	stats := 0
+	response := map[string]interface{}{
+		"users": users,
+		"total": total,
+		"stats": stats,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 func GetStatsHandler(w http.ResponseWriter, r *http.Request) {
-    adminCount, _ := repository.GetUserCountByRole("admin")
-    sellerCount, _ := repository.GetUserCountByRole("seller")
-    customerCount, _ := repository.GetUserCountByRole("customer")
+	adminCount, _ := repository.GetUserCountByRole("admin")
+	sellerCount, _ := repository.GetUserCountByRole("seller")
+	customerCount, _ := repository.GetUserCountByRole("customer")
 
-    stats := map[string]int{
-        "admin":    adminCount,
-        "seller":   sellerCount,
-        "customer": customerCount,
-    }
-    
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(stats)
+	stats := map[string]int{
+		"admin":    adminCount,
+		"seller":   sellerCount,
+		"customer": customerCount,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }
-
-
 
 // удаление пользователя по ID
 func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +120,6 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 }
-
 
 func CreateSellerPageHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "view/create_seller.html")

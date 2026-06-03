@@ -324,31 +324,96 @@ func MarkNotificationsAsRead(userID int) error {
     return err
 }
 // GetUsersPaginated меняем логику с offset на id
-func GetUsersPaginated(lastID int, limit int) ([]models.User, error) {
-    // Если lastID == 0, значит мы берем первую страницу
-    query := `
-        SELECT u.id, u.username, u.email, r.name 
-        FROM users u 
-        JOIN roles r ON u.role_id = r.id 
-        WHERE u.id > $1 
-        ORDER BY u.id ASC 
-        LIMIT $2`
-    
-    rows, err := database.DB.Query(context.Background(), query, lastID, limit)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+func GetUsersPaginated(page int, limit int, search string, role string) ([]models.User, int, error) {
 
-    var users []models.User
-    for rows.Next() {
-        var u models.User
-        if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.RoleName); err != nil {
-            return nil, err
-        }
-        users = append(users, u)
-    }
-    return users, nil
+	offset := (page - 1) * limit
+
+	where := "WHERE 1=1"
+	args := []interface{}{}
+	argIndex := 1
+
+	if search != "" {
+		where += fmt.Sprintf(
+			" AND (LOWER(u.username) LIKE LOWER($%d) OR LOWER(u.email) LIKE LOWER($%d))",
+			argIndex,
+			argIndex,
+		)
+
+		args = append(args, "%"+search+"%")
+		argIndex++
+	}
+
+	if role != "" {
+		where += fmt.Sprintf(" AND LOWER(r.name) = LOWER($%d)", argIndex)
+
+		args = append(args, role)
+		argIndex++
+	}
+
+	countQuery := `
+		SELECT COUNT(*)
+		FROM users u
+		JOIN roles r ON u.role_id = r.id
+	` + where
+
+	var total int
+
+	err := database.DB.QueryRow(
+		context.Background(),
+		countQuery,
+		args...,
+	).Scan(&total)
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT
+			u.id,
+			u.username,
+			u.email,
+			r.name
+		FROM users u
+		JOIN roles r ON u.role_id = r.id
+	` + where + fmt.Sprintf(`
+		ORDER BY u.id
+		LIMIT $%d
+		OFFSET $%d
+	`, argIndex, argIndex+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := database.DB.Query(
+		context.Background(),
+		query,
+		args...,
+	)
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	defer rows.Close()
+
+	var users []models.User
+
+	for rows.Next() {
+		var u models.User
+
+		if err := rows.Scan(
+			&u.ID,
+			&u.Username,
+			&u.Email,
+			&u.RoleName,
+		); err != nil {
+			return nil, 0, err
+		}
+
+		users = append(users, u)
+	}
+
+	return users, total, nil
 }
 
 // для получения общего количества 
@@ -357,4 +422,6 @@ func GetTotalUsers() (int, error) {
     err := database.DB.QueryRow(context.Background(), "SELECT COUNT(*) FROM users").Scan(&count)
     return count, err
 }
+
+
 

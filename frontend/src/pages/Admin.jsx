@@ -44,26 +44,35 @@ const [lastId, setLastId] = useState(0); // ДОБАВЬТЕ ЭТО
 
   // --- ЛОГИКА ---
 
-const fetchUsers = async (page = 1) => {
+const fetchUsers = async (page = 1, search = '', role = 'all') => {
     const token = localStorage.getItem('token');
+    // Передаем параметры поиска и роль на сервер
+    const roleParam = role === 'all' ? '' : role;
+    
     try {
-      const res = await fetch(`http://localhost:8080/api/admin/users?page=${page}&limit=10`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.users) {
-        setUsers(data.users);
-        setLastId(data.total || 0);
-      } else if (Array.isArray(data)) {
-        setUsers(data);
-      }
+        const url = `http://localhost:8080/api/admin/users?page=${page}&limit=10&search=${search}&role=${roleParam}`;
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        
+        if (data.users) {
+            setUsers(data.users);
+            setLastId(data.total || 0); 
+        }
     } catch (err) { console.error("Ошибка сети:", err); }
-  };
+};
+useEffect(() => {
 
-useEffect(() => { 
-    fetchUsers(currentPage); 
-  }, [currentPage]);
+    fetchUsers(currentPage, searchTerm, roleFilter);
+}, [currentPage, searchTerm, roleFilter]);
 
+
+const handleRoleChange = (role) => {
+    setRoleFilter(role);
+    setCurrentPage(1);
+};
   const handleLogout = () => {
 
     localStorage.removeItem('token');
@@ -312,7 +321,7 @@ const getPageNumbers = () => {
 
                     key={role}
 
-                    onClick={() => setRoleFilter(role)}
+                    onClick={() => handleRoleChange(role)}
 
                     className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-all ${roleFilter === role ? 'bg-indigo-500 text-white' : 'text-slate-400'}`}
 

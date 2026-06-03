@@ -320,7 +320,7 @@ const Seller = () => {
                     </span>
                   </td>
                   <td className="p-4 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-end gap-2 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEditModal(p)} className="p-2 bg-gray-800 rounded-lg hover:text-emerald-400"><Edit size={16}/></button>
                       <button onClick={() => handleDeleteProduct(p.id)} className="p-2 bg-gray-800 rounded-lg hover:text-rose-400"><Trash2 size={16}/></button>
                     </div>
