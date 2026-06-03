@@ -351,7 +351,7 @@ func GetUsersPaginated(lastID int, limit int) ([]models.User, error) {
     return users, nil
 }
 
-// Добавьте функцию для получения общего количества (нужно для фронтенда)
+// для получения общего количества 
 func GetTotalUsers() (int, error) {
     var count int
     err := database.DB.QueryRow(context.Background(), "SELECT COUNT(*) FROM users").Scan(&count)

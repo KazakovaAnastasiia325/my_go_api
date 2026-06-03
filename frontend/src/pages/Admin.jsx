@@ -47,26 +47,21 @@ const [lastId, setLastId] = useState(0); // ДОБАВЬТЕ ЭТО
 const fetchUsers = async (page = 1) => {
     const token = localStorage.getItem('token');
     try {
-        const res = await fetch(`http://localhost:8080/api/admin/users?page=${page}&limit=10`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        console.log("Данные от сервера:", data); // ДОБАВЬТЕ ЭТО
-        
-        if (data.users) {
-            setUsers(data.users);
-            setLastId(data.total || 0); 
-        } else if (Array.isArray(data)) {
-            // Если сервер возвращает просто массив, а не объект с полем users
-            setUsers(data);
-        }
+      const res = await fetch(`http://localhost:8080/api/admin/users?page=${page}&limit=10`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.users) {
+        setUsers(data.users);
+        setLastId(data.total || 0);
+      } else if (Array.isArray(data)) {
+        setUsers(data);
+      }
     } catch (err) { console.error("Ошибка сети:", err); }
-};
+  };
 
 useEffect(() => { 
-      fetchUsers(currentPage); 
-      
+    fetchUsers(currentPage); 
   }, [currentPage]);
 
   const handleLogout = () => {
@@ -155,7 +150,7 @@ useEffect(() => {
 
 
 
-  // --- ВЫЧИСЛЕНИЯ ---
+  // ВЫЧИСЛЕНИЯ
 
   const stats = useMemo(() => {
     // Считаем вручную из массива всех пользователей
@@ -183,7 +178,7 @@ useEffect(() => {
 
 
 
-  const paginatedUsers = users;
+  const paginatedUsers = filteredUsers;
 
 
 
@@ -345,7 +340,7 @@ const getPageNumbers = () => {
 
                 <tr>
 
-                    <th className="p-4">ID</th>
+                    <th className="p-4">№</th>
 
                     <th className="p-4">Имя</th>
 
@@ -361,11 +356,11 @@ const getPageNumbers = () => {
 
             <tbody className="divide-y divide-gray-800/60">
 
-                {paginatedUsers.map(user => (
+                {paginatedUsers.map((user, index) => (
 
                 <tr key={user.id || user.ID} className="hover:bg-indigo-500/5 transition-colors group">
 
-                    <td className="p-4 text-slate-500 font-mono text-sm">#{user.id || user.ID}</td>
+                    <td className="p-4 text-slate-500 font-mono text-sm">{(currentPage - 1) * 10 + index + 1}</td>
 
                     <td className="p-4 font-medium text-slate-200">{user.username || user.Username}</td>
 
