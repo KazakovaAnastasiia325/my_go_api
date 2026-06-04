@@ -16,9 +16,7 @@ import (
 
 func getSecret() []byte {
 	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "default_secret_key" // Используем ту же строку, что и в service!
-	}
+	
 	return []byte(secret)
 }
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -26,16 +24,16 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		authHeader := r.Header.Get("Authorization")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-		// ВЫВОДИМ ТОКЕН В КОНСОЛЬ, ЧТОБЫ УБЕДИТЬСЯ
+		// вывод токена в консоль для отладки
 		log.Printf("DEBUG: Пытаюсь проверить токен: %s", tokenString)
 
 		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-			// ПРОВЕРЯЕМ СЕКРЕТНЫЙ КЛЮЧ
+			// проверка секретного ключа
 			return getSecret(), nil
 		})
 
 		if err != nil {
-			// ЭТО ВАМ ПОКАЖЕТ, ПОЧЕМУ ОШИБКА (например, "signature is invalid")
+			
 			log.Printf("DEBUG: Ошибка валидации токена: %v", err)
 			http.Error(w, "Ошибка токена: "+err.Error(), http.StatusUnauthorized)
 			return
@@ -44,7 +42,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			log.Printf("DEBUG: Токен валиден! Данные: %v", claims)
 
-			// ВАШ userID
+			//  userID
 			userIDFloat := claims["user_id"].(float64)
 			userID := int(userIDFloat)
 
@@ -57,10 +55,10 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 func S3FileHandler(w http.ResponseWriter, r *http.Request) {
 	// r.URL.Path выглядит как "/uploads/имя_файла.jpg"
-	// Нам нужно вытащить имя объекта из пути
+	
 	objectName := strings.TrimPrefix(r.URL.Path, "/uploads/")
 
-	// Получаем объект из MinIO
+	// объект из MinIO
 	object, err := storage.S3Client.GetObject(context.Background(), "uploads", objectName, minio.GetObjectOptions{})
 	if err != nil {
 		http.Error(w, "Файл не найден", http.StatusNotFound)
@@ -68,29 +66,28 @@ func S3FileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer object.Close()
 
-	// Устанавливаем правильные заголовки (можно добавить определение типа через mime/type)
+	// Устанавливаем правильные заголовки
 	w.Header().Set("Content-Type", "image/jpeg")
 
 	// Отправляем файл пользователю
 	io.Copy(w, object)
 }
 
-// 2. ИСПРАВЛЕННЫЙ SETUPROUTES
+
 func SetupRoutes() http.Handler {
 	mux := http.NewServeMux()
 
-	// ... остальной код (статика и т.д.) ...
-	// Убираем сложную логику из корня "/"
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/auth", http.StatusSeeOther)
 	})
 
-	// Просто регистрируем статику один раз
+	
 	mux.HandleFunc("/uploads/", S3FileHandler)
 
 	mux.HandleFunc("/auth", handlers.AuthenticatePageHandler)
 
-	// ЗАЩИЩЕННЫЕ API (используем AuthMiddleware)
+	// ЗАЩИЩЕННЫЕ API 
 	mux.HandleFunc("/api/checkout", AuthMiddleware(handlers.CheckoutHandler))
 
 	// ОТКРЫТЫЕ API

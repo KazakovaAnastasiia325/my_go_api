@@ -46,7 +46,11 @@ const Reg = () => {
 
   return (
 
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#020617] selection:bg-indigo-500/30">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
+      <div className="absolute inset-0 z-0 animate-pulse-slow">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-900/30 blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-pink-900/20 blur-[120px]"></div>
+      </div>
 
       <div className="w-full max-w-md bg-gray-900/40 backdrop-blur-2xl border border-white/5 p-8 rounded-3xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] relative overflow-hidden">
 

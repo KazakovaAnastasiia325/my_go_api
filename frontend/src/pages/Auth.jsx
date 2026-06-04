@@ -57,7 +57,11 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
+      <div className="absolute inset-0 z-0 animate-pulse-slow">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-900/30 blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-pink-900/20 blur-[120px]"></div>
+      </div>
       <div className="w-full max-w-md bg-gray-900/40 backdrop-blur-xl border border-gray-800/80 p-8 rounded-3xl shadow-2xl relative overflow-hidden">
         
         <div className="absolute top-0 left-1/4 w-1/2 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent blur-sm"></div>

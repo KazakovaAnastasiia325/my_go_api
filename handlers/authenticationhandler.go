@@ -30,11 +30,20 @@ func AuthenticateUserHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // установка куки
+    http.SetCookie(w, &http.Cookie{
+        Name:     "auth_token",
+        Value:    token,
+        HttpOnly: true, // Запрещает доступ через JS (защита от XSS)
+        Secure:   false, // Поставьте true, если используете HTTPS
+        Path:     "/",
+        SameSite: http.SameSiteStrictMode,
+    })
+
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]interface{}{ // Используем interface{}, чтобы отправить и строки, и число ID
-        "token":     token,
-        "role":      role,
-        "user_id":   userID, // ТЕПЕРЬ ПЕРЕДАЕМ ID
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "role":    role,
+        "user_id": userID,
     })
 }
 func AuthenticatePageHandler(w http.ResponseWriter, r *http.Request) {

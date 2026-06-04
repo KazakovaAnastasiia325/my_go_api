@@ -290,7 +290,7 @@ useEffect(() => {
 
 
     return (
-        <div className="max-h-screen bg-[#090d16] text-slate-100 font-['Plus_Jakarta_Sans']">
+        <div className="min-h-screen bg-[#090d16] text-slate-100 font-['Plus_Jakarta_Sans']">
             <nav className="sticky top-0 z-50 bg-[#090d16]/80 backdrop-blur-md border-b border-gray-800 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-3">

@@ -25,7 +25,7 @@ func RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ЛОГИКА: При обычной регистрации мы всегда ставим роль 'customer'.
+	// При обычной регистрации мы всегда ставим роль 'customer'.
 
 	customerRoleID := 2
 
