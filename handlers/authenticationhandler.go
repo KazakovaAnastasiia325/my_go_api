@@ -34,8 +34,8 @@ func AuthenticateUserHandler(w http.ResponseWriter, r *http.Request) {
     http.SetCookie(w, &http.Cookie{
         Name:     "auth_token",
         Value:    token,
-        HttpOnly: true, // Запрещает доступ через JS (защита от XSS)
-        Secure:   false, // Поставьте true, если используете HTTPS
+        HttpOnly: true, // Запрещает доступ через JS 
+        Secure:   false, // если HTTPS то true, для разработки false
         Path:     "/",
         SameSite: http.SameSiteStrictMode,
     })
