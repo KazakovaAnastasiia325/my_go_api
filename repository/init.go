@@ -6,7 +6,7 @@ import (
 	"my_api/database"
 	"os"
 	"strconv" // Добавили для конвертации строки из Env в число
-
+	"my_api/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -48,3 +48,21 @@ func SeedAdmin() {
 		log.Printf("✅ Проверка админа '%s' завершена (создан или уже был)", username)
 	}
 }
+
+
+func GetUserByID(id int) (*models.User, error) {
+    var user models.User
+    
+   
+    query := "SELECT id, username, role_name FROM users WHERE id = $1"
+    
+
+    err := database.DB.QueryRow(context.Background(), query, id).Scan(&user.ID, &user.Username, &user.RoleName)
+    
+    if err != nil {
+        return nil, err
+    }
+    return &user, nil
+}
+
+

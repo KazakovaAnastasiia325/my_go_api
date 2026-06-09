@@ -65,8 +65,9 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     var cart []struct {
-        ID    int `json:"id"`
-        Count int `json:"count"`
+        ID       int    `json:"id"`
+        SellerID string `json:"sellerId"` // Добавьте это поле
+        Count    int    `json:"count"`
     }
 
     if err := json.NewDecoder(r.Body).Decode(&cart); err != nil {
@@ -116,10 +117,11 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 
     // 5. Списываем остатки
     for _, item := range cart {
-        if err := repository.ReduceProductQuantity(item.ID, item.Count); err != nil {
-            log.Printf("Ошибка списания товара ID %d: %v", item.ID, err)
-        }
+    // ВАЖНО: Передавайте sellerId в ваш метод репозитория
+    if err := repository.ReduceProductQuantity(item.ID, item.SellerID, item.Count); err != nil {
+        log.Printf("Ошибка списания товара ID %d (seller %s): %v", item.ID, item.SellerID, err)
     }
+}
 
     // 6. ПЕРВОЕ уведомление об оформлении
     repository.CreateNotification(userID, fmt.Sprintf("Заказ №%d успешно оформлен! Ожидайте подтверждения.", orderID))

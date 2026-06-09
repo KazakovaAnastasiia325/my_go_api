@@ -15,42 +15,45 @@ const Auth = () => {
     setLoading(true);
     setError(null);
 
-    const data = { username, password };
-
     try {
-      // Исправлено: Добавляем полный путь к Go-серверу
       const response = await fetch('http://localhost:8080/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ username, password }),
+        credentials: 'include' // Важно для работы с Cookies
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        
-        localStorage.setItem('token', result.token);
-        localStorage.setItem('role', result.role); 
-        localStorage.setItem('userId', result.user_id);
-        const normRole = (result.role || '').toLowerCase();
-        
-        // Исправлено: Маршруты должны совпадать с теми, что в App.jsx
-        const routes = {
-          'admin': '/admin',
-          'seller': '/seller-dashboard',
-          'customer': '/customer-dashboard'
-        };
-
-        // Используем navigate вместо window.location для скорости
-        navigate(routes[normRole] || '/welcome');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Неверное имя пользователя или пароль');
+      if (!response.ok) {
+        throw new Error('Неверное имя пользователя или пароль');
       }
+
+      const result = await response.json(); 
+      
+      // Очищаем старые данные и записываем новые
+      localStorage.removeItem('role');
+      localStorage.removeItem('userId');
+      localStorage.setItem('role', result.role);
+      localStorage.setItem('userId', result.user_id);
+      // Если сервер отдает JWT, его тоже нужно сохранить
+      if (result.token) localStorage.setItem('token', result.token);
+      
+      console.log("Успешный вход. Роль:", result.role);
+      
+      // Определяем куда идти
+      const routes = {
+        'admin': '/admin',
+        'seller': '/seller-dashboard',
+        'customer': '/customer-dashboard'
+      };
+      
+      const targetPath = routes[result.role] || '/';
+      
+      // Используем replace: true, чтобы пользователь не вернулся на форму входа кнопкой "Назад"
+      navigate(targetPath, { replace: true });
+      
     } catch (err) {
       console.error("Auth error:", err);
-      setError(err.message === 'Failed to fetch' 
-        ? 'Не удалось связаться с сервером. Проверьте, запущен ли Go-бэкенд.' 
-        : err.message);
+      setError(err.message || 'Ошибка сервера');
     } finally {
       setLoading(false);
     }

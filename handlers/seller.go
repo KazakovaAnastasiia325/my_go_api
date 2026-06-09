@@ -137,3 +137,13 @@ func GetCategoriesHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(categories)
 }
+func SellerHandler(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodGet {
+        http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+        return
+    }
+    // Здесь вы можете либо вернуть JSON с данными, либо отдать HTML-страницу
+    // Например:
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Панель продавца"})
+}

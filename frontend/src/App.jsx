@@ -6,6 +6,7 @@ import Customer from './pages/Сustomer';
 import Catalog from './pages/Catalog';
 import Seller from './pages/Seller';
 import Reg from './pages/Reg';
+import ProtectedRoute from './pages/ProtectedRoute';
 
 // Временная заглушка, если страницы создания продавца еще нет физически
 const CreateSellerStub = () => (
@@ -18,13 +19,26 @@ function App() {
       <Router>
         <Routes>
           <Route path="/auth" element={<Auth />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Admin />
+            </ProtectedRoute>
+          } />
           <Route path="/create-seller" element={<CreateSellerStub />} /> 
-          <Route path="/customer-dashboard" element={<Customer />} />
+          <Route path="/customer-dashboard" element={
+            <ProtectedRoute allowedRoles={['customer', 'admin']}>
+              <Customer />
+            </ProtectedRoute>
+          } />
           <Route path="/catalog-dashboard" element={<Catalog />} />
           <Route path="/reg" element={<Reg />} />
-          <Route path="/seller-dashboard" element={<Seller />} />
+          <Route path="/seller-dashboard" element={
+            <ProtectedRoute allowedRoles={['seller', 'admin']}>
+              <Seller />
+            </ProtectedRoute>
+          } />
           <Route path="/" element={<Navigate to="/auth" />} />
+          
         </Routes>
       </Router>
     </div>

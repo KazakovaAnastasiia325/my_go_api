@@ -239,21 +239,23 @@ func GetCatalogProducts() ([]map[string]interface{}, error) {
 
 	return products, nil
 }
-func ReduceProductQuantity(id int, count int) error {
-	// Проверка на количество (quantity >= $3) гарантирует, что мы не уйдем в минус
-	query := `UPDATE products SET quantity = quantity - $1 WHERE id = $2 AND quantity >= $3`
+// Обновленный метод в репозитории
+func ReduceProductQuantity(productID int, sellerID string, count int) error {
+    // ВАЖНО: Мы добавляем условие AND seller_id = $4
+    query := `UPDATE product_sellers 
+              SET quantity = quantity - $1 
+              WHERE product_id = $2 AND seller_id = $3 AND quantity >= $1`
 
-	result, err := database.DB.Exec(context.Background(), query, count, id, count)
-	if err != nil {
-		return fmt.Errorf("не удалось обновить остатки: %w", err)
-	}
+    result, err := database.DB.Exec(context.Background(), query, count, productID, sellerID, count)
+    if err != nil {
+        return fmt.Errorf("не удалось обновить остатки: %w", err)
+    }
 
-	// Проверяем, обновилась ли хоть одна строка (если товара было меньше, чем заказывают, rows будет 0)
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("недостаточно товара на складе или товар не найден")
-	}
+    if result.RowsAffected() == 0 {
+        return fmt.Errorf("недостаточно товара у этого продавца или товар не найден")
+    }
 
-	return nil
+    return nil
 }
 // Удаление пользователя по ID
 func DeleteUser(id int) error {
