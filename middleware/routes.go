@@ -112,7 +112,8 @@ mux.HandleFunc("/api/check-role", AuthMiddleware(handlers.CheckRoleHandler))
 
     // Пример: Доступ для продавца и админа
     mux.HandleFunc("/api/seller-dashboard", AuthMiddleware(RoleMiddleware("seller", "admin")(handlers.SellerHandler)))
-
+    // Добавьте эту строку в ваш список маршрутов
+mux.HandleFunc("/api/admin/analytics/orders", AuthMiddleware(RoleMiddleware("admin")(handlers.GetOrdersChartData)))
     // Пример: Доступ для покупателя и админа
     mux.HandleFunc("/api/customer-dashboard", AuthMiddleware(RoleMiddleware("customer", "admin")(handlers.CustomerDashboardHandler)))
 mux.HandleFunc("/api/admin/stats", AuthMiddleware(RoleMiddleware("admin")(handlers.GetStatsHandler)))

@@ -65,4 +65,39 @@ func GetUserByID(id int) (*models.User, error) {
     return &user, nil
 }
 
+func GetOrdersChartData() ([]map[string]interface{}, error) {
+    // Добавляем ::TEXT к дате, чтобы PostgreSQL отдал её как строку
+    query := `
+        SELECT DATE(created_at)::TEXT as date, COUNT(*) as count 
+        FROM orders 
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC;`
 
+    rows, err := database.DB.Query(context.Background(), query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var data []map[string]interface{}
+    for rows.Next() {
+        var date string
+        var count int
+        // Теперь сканирование сработает, так как мы явно привели тип в SQL
+        if err := rows.Scan(&date, &count); err != nil {
+            return nil, err
+        }
+        data = append(data, map[string]interface{}{
+            "date":  date,
+            "count": count,
+        })
+    }
+    
+    // Если данных нет, вернем пустой массив вместо nil, чтобы фронтенд не падал
+    if data == nil {
+        return []map[string]interface{}{}, nil
+    }
+    
+    return data, nil
+}

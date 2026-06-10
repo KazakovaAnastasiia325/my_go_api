@@ -4,7 +4,10 @@ import {
   Search, UserPlus, Trash2, LogOut
 } from 'lucide-react';
 import { useAuth } from '../hook/useAuth';
-
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, 
+  LineChart, Line, XAxis, YAxis, CartesianGrid 
+} from 'recharts';
 // Компонент вынесен за пределы основного компонента
 const StatCard = ({ title, value, Icon, color }) => (
   <article className="bg-gray-900/40 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
@@ -28,7 +31,8 @@ const Admin = () => {
   const [lastId, setLastId] = useState(0);
   const { logout } = useAuth();
   const [statsData, setStatsData] = useState({ admin: 0, seller: 0, customer: 0 });
-
+  const COLORS = ['#f43f5e', '#10b981', '#3b82f6'];
+const [chartData, setChartData] = useState([]);
   const USERS_PER_PAGE = 10;
 
   // --- ЛОГИКА ---
@@ -124,7 +128,30 @@ const fetchStats = async () => {
   }), [statsData, lastId]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(lastId / USERS_PER_PAGE)), [lastId]);
+const pieData = useMemo(() => [
+    { name: 'Админы', value: stats.admins },
+    { name: 'Продавцы', value: stats.sellers },
+    { name: 'Клиенты', value: stats.customers },
+  ], [stats]);
+const fetchChartData = async () => {
+    try {
+        const res = await fetch('http://localhost:8080/api/admin/analytics/orders', { credentials: 'include' });
+        
+        if (!res.ok) {
+            console.error("Ошибка сервера:", await res.text());
+            return; // Прерываем выполнение, если сервер вернул ошибку
+        }
+        
+        const data = await res.json();
+        setChartData(data);
+    } catch (err) {
+        console.error("Ошибка сети:", err);
+    }
+};
 
+useEffect(() => {
+    fetchChartData();
+}, []);
   const getRoleBadgeClass = (role) => {
     const r = (role || '').toLowerCase();
     if (r === 'admin') return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
@@ -157,39 +184,40 @@ const handleRoleChange = (role) => {
     setCurrentPage(1); // Сбрасываем страницу при смене фильтра
   };
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-10 pb-6 border-b border-gray-800">
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-          Панель Администратора
-        </h1>
-        <nav className="flex items-center gap-3">
-          <button onClick={handleLogout} className="p-3 text-slate-400 hover:text-rose-400 border border-gray-800 rounded-xl transition-all">
-            <LogOut className="w-5 h-5" />
-          </button>
-          <button onClick={() => setIsModalOpen(true)} className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl transition-all shadow-lg">
-            <UserPlus className="w-5 h-5" /> Новый пользователь
-          </button>
-        </nav>
-      </header>
+   <main className="max-w-[95%] mx-auto px-4 py-10 grid grid-cols-12 gap-8">
+  
+  {/* ОСНОВНАЯ ЧАСТЬ (8 колонок) */}
+  <section className="col-span-12 lg:col-span-8 space-y-8">
+    
+    <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-gray-800">
+      <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        Панель Администратора
+      </h1>
+      <nav className="flex items-center gap-3">
+        <button onClick={handleLogout} className="p-3 text-slate-400 hover:text-rose-400 border border-gray-800 rounded-xl transition-all"><LogOut className="w-5 h-5" /></button>
+        <button onClick={() => setIsModalOpen(true)} className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl transition-all shadow-lg"><UserPlus className="w-5 h-5" /> Новый пользователь</button>
+      </nav>
+    </header>
 
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Всего" value={stats.total} Icon={Users} color="text-white" />
-        <StatCard title="Админы" value={stats.admins} Icon={ShieldAlert} color="text-rose-400" />
-        <StatCard title="Продавцы" value={stats.sellers} Icon={Store} color="text-emerald-400" />
-        <StatCard title="Клиенты" value={stats.customers} Icon={ShoppingBag} color="text-blue-400" />
-      </section>
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatCard title="Всего" value={stats.total} Icon={Users} color="text-white" />
+      <StatCard title="Админы" value={stats.admins} Icon={ShieldAlert} color="text-rose-400" />
+      <StatCard title="Продавцы" value={stats.sellers} Icon={Store} color="text-emerald-400" />
+      <StatCard title="Клиенты" value={stats.customers} Icon={ShoppingBag} color="text-blue-400" />
+    </section>
 
-      <section className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl mb-6 flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
-          <input type="text" placeholder="Поиск по имени или email..." className="w-full bg-slate-950 border border-gray-800 rounded-xl pl-10 pr-4 py-2 text-slate-200 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-        <nav className="flex bg-slate-950 p-1 rounded-xl border border-gray-800">
-           {['all', 'admin', 'seller', 'customer'].map(role => (
-            <button key={role} onClick={() => handleRoleChange(role)} className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-all ${roleFilter === role ? 'bg-indigo-500 text-white' : 'text-slate-400'}`}>{role === 'all' ? 'Все' : role}</button>
-          ))}
-        </nav>
-      </section>
+    <section className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex flex-col md:flex-row gap-4">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
+        <input type="text" placeholder="Поиск..." className="w-full bg-slate-950 border border-gray-800 rounded-xl pl-10 pr-4 py-2 text-slate-200 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      </div>
+      <nav className="flex bg-slate-950 p-1 rounded-xl border border-gray-800">
+        {['all', 'admin', 'seller', 'customer'].map(role => (
+          <button key={role} onClick={() => handleRoleChange(role)} className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-all ${roleFilter === role ? 'bg-indigo-500 text-white' : 'text-slate-400'}`}>{role === 'all' ? 'Все' : role}</button>
+        ))}
+      </nav>
+    </section>
+          
 
       <section className="bg-gray-900/30 border border-gray-800 rounded-2xl overflow-hidden">
         <table className="w-full text-left">
@@ -217,7 +245,81 @@ const handleRoleChange = (role) => {
         ))}
         <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 bg-gray-800 text-slate-300 rounded hover:bg-gray-700 disabled:opacity-30">Вперед</button>
       </nav>
+</section>
+<aside className="col-span-12 lg:col-span-4 space-y-6">
+    <div className="bg-gray-900/40 p-6 rounded-2xl border border-gray-800">
+      <h3 className="text-white font-bold mb-4">Система</h3>
+      <div className="space-y-4">
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-400">Статус БД</span>
+          <span className="text-emerald-400 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> Online</span>
+        </div>
+      </div>
+    </div>
+    <div className="bg-gradient-to-b from-indigo-900/20 to-transparent p-6 rounded-2xl border border-indigo-900/30">
+      <h3 className="text-white font-bold mb-4">Активность</h3>
+      <div className="space-y-4">
+        
+        <p className="text-sm text-slate-400">Система работает в штатном режиме.</p>
+      </div>
+    </div>
+    {/* Секция с графиком */}
 
+  {/* Круговая диаграмма */}
+  <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-2xl h-80">
+    <h3 className="text-slate-400 mb-4 font-medium">Распределение ролей</h3>
+    <ResponsiveContainer width="100%" height="85%">
+      <PieChart>
+        <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={8} dataKey="value" cornerRadius={4}>
+          {pieData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Pie>
+        <Tooltip 
+          contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '8px', color: '#f1f5f9' }}
+        />
+        <Legend verticalAlign="bottom" height={36}/>
+      </PieChart>
+    </ResponsiveContainer>
+  </div>
+
+  {/* Линейный график заказов */}
+  <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-2xl h-80">
+    <h3 className="text-slate-400 mb-4 font-medium">Динамика заказов (7 дней)</h3>
+    <ResponsiveContainer width="100%" height="85%">
+      <LineChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+        <XAxis 
+          dataKey="date" 
+          stroke="#64748b" 
+          fontSize={12} 
+          tickLine={false} 
+          axisLine={false} 
+        />
+        <YAxis 
+          stroke="#64748b" 
+          fontSize={12} 
+          tickLine={false} 
+          axisLine={false} 
+          allowDecimals={false}
+        />
+        <Tooltip 
+          contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '8px' }}
+          itemStyle={{ color: '#818cf8' }}
+        />
+        <Line 
+          type="monotone" 
+          dataKey="count" 
+          stroke="#818cf8" 
+          strokeWidth={3} 
+          dot={{ r: 4, fill: '#818cf8' }} 
+          activeDot={{ r: 6 }} 
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+
+  </aside>
       {isModalOpen && (
         <aside className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <form onSubmit={handleSaveUser} className="bg-slate-900 border border-gray-800 w-full max-w-md rounded-2xl p-6">

@@ -22,7 +22,7 @@ const Reg = () => {
       });
       if (response.ok) {
         alert('Ура! Пользователь создан');
-        navigate(`/auth-page`);
+        navigate(`/auth`);
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Ошибка при регистрации');
