@@ -173,7 +173,7 @@ const Seller = () => {
 
   return (
     <main className="min-h-screen bg-[#090d16] text-slate-100 p-4 md:p-10 font-sans">
-      <article className="max-w-7xl mx-auto">
+      <article className="max-w-[95%] mx-auto">
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10 pb-6 border-b border-gray-800">
           <hgroup>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-indigo-400 bg-clip-text text-transparent">Панель Продавца</h1>
@@ -231,21 +231,21 @@ const Seller = () => {
       {filteredProducts.map(p => (
         <tr key={p.id}>
           <td className="p-4">
-            <figure className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
+            <figure className="w-16 h-16 bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
               {p.image_url ? <img src={`http://localhost:8080${p.image_url}`} className="w-full h-full object-cover" alt="" /> : <ImageIcon size={20} className="text-gray-600"/>}
             </figure>
           </td>
-          <td className="p-4 truncate">
+          <td className="p-6 truncate">
             <p className="font-bold truncate">{p.name}</p>
             <p className="text-[11px] text-slate-500 truncate">{p.description}</p>
           </td>
-          <td className="p-4 text-emerald-400 font-bold whitespace-nowrap">{Number(p.price).toLocaleString()} ₸</td>
+          <td className="p-6 text-emerald-400 font-bold whitespace-nowrap">{Number(p.price).toLocaleString()} ₸</td>
           <td className="p-4 text-center">
             <span className="px-3 py-1 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400">
               {p.quantity} шт
             </span>
           </td>
-          <td className="p-4 text-right space-x-2">
+          <td className="p-6 text-right space-x-2">
             <button onClick={() => openEditModal(p)} className="p-2 bg-gray-800 rounded-lg hover:text-emerald-400 transition-colors">
               <Edit size={16}/>
             </button>

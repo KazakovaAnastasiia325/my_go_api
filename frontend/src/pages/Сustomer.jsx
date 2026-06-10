@@ -290,6 +290,7 @@ const Customer = () => {
                             {p.image_url ? <img src={`http://localhost:8080${p.image_url}`} className="object-cover w-full h-full rounded-2xl" /> : <ImageIcon size={48} className="text-gray-700"/>}
                         </figure>
                         <h2 className="font-bold">{p.name}</h2>
+                        <p className="text-[13px] text-slate-500 truncate">{p.description}</p>
                         <footer className="mt-4 pt-4 border-t border-gray-800">
                             <button onClick={() => setSellerModalProduct(p)} className="w-full bg-gray-800 hover:bg-indigo-600 p-3 rounded-xl transition-all font-bold">
                                 {Math.min(...p.sellers.map(s => s.price))} ₸
